@@ -12,6 +12,23 @@ exports.getUserById = (req, res, next) => {
   if (!user) {
     return next(new HttpError("User not found!", 404));
   }
+
+  io.getIO().in(kioskId).emit("jwttoken", { user: user.id });
+
+  res.json({
+    userId: user.id,
+  });
+};
+
+exports.verifyUserPin = (req, res, next) => {
+  const { userId, pin } = req.body;
+  const user = DUMMY_USERS.find((u) => u.id === userId);
+  if (!user) {
+    return next(new HttpError("User not found!", 404));
+  }
+  if (user.pin !== pin) {
+    return next(new HttpError("Incorrect pin!", 422));
+  }
   let token;
   try {
     token = jwt.sign(
@@ -22,11 +39,6 @@ exports.getUserById = (req, res, next) => {
   } catch (err) {
     return next(new HttpError("Sign in failed", 500));
   }
-
-  // console.log(kioskId);
-
-  io.getIO().in(kioskId).emit("jwttoken", token);
-
 
   res.json({
     token: token,

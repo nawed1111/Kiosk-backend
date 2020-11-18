@@ -6,6 +6,7 @@ exports.DUMMY_USERS = [
     email: "email@gmail.com",
     contact: 999999999,
     password: "123",
+    pin: "1234",
   },
   {
     id: "123457",
@@ -14,5 +15,6 @@ exports.DUMMY_USERS = [
     email: "email@gmail.com",
     contact: 999999999,
     password: "1234",
+    pin: "1111",
   },
 ];
