@@ -41,13 +41,16 @@ exports.getSampleById = (req, res, next) => {
 };
 
 exports.runSampleTest = (req, res, next) => {
-  const { sid, temparature, testRunTime } = req.body;
+  const { instrument, samples, kioskId, duration, timestamp } = req.body;
+  console.log(instrument, samples, kioskId, duration, timestamp);
+
   const DUMMY_SAMPLE_TEST = {
     id: uuid(),
-    sid,
-    temparature,
-    testRunTime,
-    testDoneOn: getTimestamp(),
+    instrument,
+    kioskId,
+    samples,
+    duration,
+    timestamp,
   };
 
   DUMMY_TESTS.push(DUMMY_SAMPLE_TEST); //async code

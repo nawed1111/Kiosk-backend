@@ -11,6 +11,6 @@ router.get("/:kid/:sid", samplesController.getSampleById);
 
 router.put("/run-test", samplesController.runSampleTest);
 
-router.patch("/postCompletion", samplesController.postTestRunCompletion);
+router.patch("/post-completion", samplesController.postTestRunCompletion);
 
 module.exports = router;
