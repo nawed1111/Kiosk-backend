@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 
 const HttpError = require("./models/http-error");
@@ -6,6 +7,8 @@ const samplesRoutes = require("./routes/samples-routes");
 const authRoutes = require("./routes/auth-routes");
 const instrumentRoutes = require("./routes/instrument-routes");
 const kioskRoutes = require("./routes/kiosk-routes");
+
+const { MONGODB_URI } = require("./config/keys");
 
 const app = express();
 
@@ -25,7 +28,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/kiosks", kioskRoutes);
-app.use("/instruments", instrumentRoutes);
+app.use("/api/instruments", instrumentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/samples", samplesRoutes);
 
@@ -42,7 +45,18 @@ app.use((error, req, res, next) => {
   res.json({ message: error.message || "An unknown error occured!" });
 });
 
-const server = app.listen(5000);
+let server;
+
+// mongoose
+//   .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+//   .then((result) => {
+//     console.log("DB Connected!");
+//     server = app.listen(5000);
+//   })
+//   .catch((err) => {
+//     console.log(err);
+//   });
+server = app.listen(5000);
 
 const io = require("./socket").init(server);
 

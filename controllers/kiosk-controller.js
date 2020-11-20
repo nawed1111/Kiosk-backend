@@ -9,5 +9,5 @@ exports.getKiosk = (req, res, next) => {
     return next(new HttpError("Kiosk not found!", 404));
   }
 
-  res.json(kiosk);
+  res.json({ kioskId: kiosk.id });
 };

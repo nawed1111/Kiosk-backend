@@ -5,10 +5,9 @@ const instrumentController = require("../controllers/instrument-controller");
 
 const router = express.Router();
 
-router.get("/:kid", instrumentController.getInstruments);
-
 router.use(CheckAuth);
 
+router.get("/:kid", instrumentController.getInstruments);
 router.get("/:id", instrumentController.getInstrument);
 
 module.exports = router;

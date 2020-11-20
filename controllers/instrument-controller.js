@@ -5,10 +5,12 @@ const io = require("../socket");
 
 exports.getInstruments = (req, res, next) => {
   const kioskId = req.params.kid;
-  const instruments = DUMMY_KIOK_INSTRUMENTS.find(
-    (data) => data.id === kioskId
-  );
-  res.json({ instruments: instruments }); // return only name and id
+  console.log(kioskId);
+  const kiosk = DUMMY_KIOK_INSTRUMENTS.find((data) => data.id === kioskId);
+  if (!kiosk) {
+    return next(new HttpError("Could not find kiosk", 404));
+  }
+  res.json({ instruments: kiosk.instruments });
 };
 
 exports.getInstrument = (req, res, next) => {
