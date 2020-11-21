@@ -5,12 +5,12 @@ const CheckAuth = require("../middleware/check-auth");
 
 const router = express.Router();
 
-// router.use(CheckAuth);
-
 router.get("/:kid/:sid", samplesController.getSampleById);
+
+router.use(CheckAuth);
 
 router.put("/run-test", samplesController.runSampleTest);
 
-router.patch("/post-completion", samplesController.postTestRunCompletion);
+router.patch("/post-sample-removal", samplesController.postSampleRemovalFromInstrument);
 
 module.exports = router;

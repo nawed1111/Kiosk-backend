@@ -44,4 +44,23 @@ exports.DUMMY_KIOK_INSTRUMENTS = [
       },
     ],
   },
+  {
+    id: "kiosk00000001",
+    instruments: [
+      {
+        id: "instrument-113",
+        name: "HPLC1",
+        description: "This is an instruemnt to test samples",
+        loaded: false,
+        recommendedTemperature: 190,
+      },
+      {
+        id: "instrument-114",
+        name: "HPLC2",
+        description: "This is an instruemnt to test samples",
+        loaded: true,
+        recommendedTemperature: 90,
+      },
+    ],
+  },
 ];

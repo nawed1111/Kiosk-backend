@@ -1,25 +1,41 @@
 const HttpError = require("../models/http-error");
 const { DUMMY_KIOK_INSTRUMENTS } = require("../models/kiosk-model");
 
+const Kiosk = require("../models/kioskModel");
+
 const io = require("../socket");
 
-exports.getInstruments = (req, res, next) => {
+exports.getInstruments = async (req, res, next) => {
   const kioskId = req.params.kid;
-  console.log(kioskId);
-  const kiosk = DUMMY_KIOK_INSTRUMENTS.find((data) => data.id === kioskId);
-  if (!kiosk) {
-    return next(new HttpError("Could not find kiosk", 404));
+
+  let kiosk;
+  try {
+    kiosk = await Kiosk.findOne({ kioskId }).populate("samplesInTest");
+  } catch (err) {
+    return next(new HttpError("Something went wrong!", 500));
   }
-  res.json({ instruments: kiosk.instruments });
+
+  if (!kiosk) {
+    return next(new HttpError("Kiosk does not exist", 404));
+  }
+  const instruments = kiosk.instruments.filter(
+    (instrument) => instrument.filled === false
+  );
+  res.json({
+    instruments,
+    testsRunning: kiosk.samplesInTest.map((test) =>
+      test.toObject({ getters: true })
+    ),
+  });
 };
 
 exports.getInstrument = (req, res, next) => {
   const instrumentId = req.params.id;
-  const DUMMY_INSTRUMENT = DUMMY_INSTRUMENTS.find(
-    (instrument) => instrument.id === instrumentId
-  );
-  if (!DUMMY_INSTRUMENT) {
-    return next(new HttpError("Could not find instrument", 404));
-  }
-  res.json({ DUMMY_INSTRUMENT });
+  // const DUMMY_INSTRUMENT = DUMMY_INSTRUMENTS.find(
+  //   (instrument) => instrument.id === instrumentId
+  // );
+  // if (!DUMMY_INSTRUMENT) {
+  //   return next(new HttpError("Could not find instrument", 404));
+  // }
+  // res.json({ DUMMY_INSTRUMENT });
 };

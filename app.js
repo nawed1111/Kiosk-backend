@@ -45,34 +45,31 @@ app.use((error, req, res, next) => {
   res.json({ message: error.message || "An unknown error occured!" });
 });
 
-let server;
+mongoose
+  .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then((result) => {
+    console.log("DB Connected!");
+    const server = app.listen(5000);
 
-// mongoose
-//   .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-//   .then((result) => {
-//     console.log("DB Connected!");
-//     server = app.listen(5000);
-//   })
-//   .catch((err) => {
-//     console.log(err);
-//   });
-server = app.listen(5000);
+    const io = require("./socket").init(server);
 
-const io = require("./socket").init(server);
+    io.on("connect", (socket) => {
+      // const clientIp = socket.request.connection.remoteAddress.split(":")[2];
+      console.log("Client Connected=> ip: ", socket.id);
 
-io.on("connect", (socket) => {
-  // const clientIp = socket.request.connection.remoteAddress.split(":")[2];
-  console.log("Client Connected=> ip: ", socket.id);
-
-  socket.on("joinAuthRoom", (room) => {
-    socket.join(room);
-    console.log("Joined room: ", room);
+      socket.on("joinAuthRoom", (room) => {
+        socket.join(room);
+        console.log("Joined room: ", room);
+      });
+      socket.on("joinSampleRoom", (room) => {
+        socket.join(room);
+        console.log("Joined room: ", room);
+      });
+      socket.on("disconnect", () => {
+        console.log("Client Disconnected ", socket.id);
+      });
+    });
+  })
+  .catch((err) => {
+    console.log(err);
   });
-  socket.on("joinSampleRoom", (room) => {
-    socket.join(room);
-    console.log("Joined room: ", room);
-  });
-  socket.on("disconnect", () => {
-    console.log("Client Disconnected ", socket.id);
-  });
-});
