@@ -2,7 +2,6 @@ const jwt = require("jsonwebtoken");
 const HttpError = require("../models/http-error");
 const { DUMMY_USERS } = require("../models/users-model");
 const { JWT_SECRET } = require("../config/keys");
-// const { CLIENT_INSTRUMENT_CONNECTION } = require("../models/instrument-model");
 
 const io = require("../socket.js");
 
@@ -42,11 +41,12 @@ exports.verifyUserPin = (req, res, next) => {
   }
   res.json({
     token: token,
-    userId: user.id,
-    isAuthenticated: true,
-    email: user.email,
-    contact: user.contact,
-    username: user.username,
+    user: {
+      userId: user.id,
+      email: user.email,
+      contact: user.contact,
+      username: user.username,
+    },
   });
 };
 
@@ -74,10 +74,11 @@ exports.login = (req, res, next) => {
 
   res.json({
     token: token,
-    isAuthenticated: true,
-    userId: user.id,
-    email: user.email,
-    contact: user.contact,
-    username: user.username,
+    user: {
+      userId: user.id,
+      email: user.email,
+      contact: user.contact,
+      username: user.username,
+    },
   });
 };

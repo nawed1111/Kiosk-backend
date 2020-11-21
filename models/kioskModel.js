@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const kioskSchema = new Schema({
-  id: {
+  kioskId: {
     type: String,
     required: true,
   },
@@ -16,9 +16,17 @@ const kioskSchema = new Schema({
       id: String,
       name: String,
       filled: Boolean,
+      recommendedTemperature: Number,
     },
   ],
-  updated: { type: Date, default: Date.now },
+  samplesInTest: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "SampleTest",
+    },
+  ],
+  created: { type: Date, default: Date.now },
+  updated: Date,
 });
 
 module.exports = mongoose.model("Kiosk", kioskSchema);

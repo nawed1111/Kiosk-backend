@@ -1,28 +1,12 @@
-const uuid = require("uuid").v4;
 const HttpError = require("../models/http-error");
 
 const io = require("../socket.js");
+const mongoose = require("mongoose");
+
+const SampleTest = require("../models/sampleTestModel");
+const Kiosk = require("../models/kioskModel");
 
 const { DUMMY_SAMPLES } = require("../models/sample-model");
-const { DUMMY_TESTS } = require("../models/tests-model");
-
-function getTimestamp() {
-  var date = new Date();
-  var str =
-    date.getFullYear() +
-    "-" +
-    (date.getMonth() + 1) +
-    "-" +
-    date.getDate() +
-    " " +
-    date.getHours() +
-    ":" +
-    date.getMinutes() +
-    ":" +
-    date.getSeconds();
-
-  return str;
-}
 
 exports.getSampleById = (req, res, next) => {
   const kioskId = req.params.kid;
@@ -30,32 +14,105 @@ exports.getSampleById = (req, res, next) => {
   const sample = DUMMY_SAMPLES.find((s) => s.id === sampleId); //async code
 
   if (!sample) {
-    return next(new HttpError("Sample not found", 404)); // next insted of throw incase of asynchronous operation
+    return next(new HttpError("Sample not found", 404));
   }
-
-  // console.log(sample);
 
   io.getIO().in(`${kioskId}-samples`).emit("scannedSample", sample);
 
   res.json(sample);
 };
 
-exports.runSampleTest = (req, res, next) => {
-  const { instrument, samples, kioskId, duration, timestamp } = req.body;
-  console.log(instrument, samples, kioskId, duration, timestamp);
-
-  const DUMMY_SAMPLE_TEST = {
-    id: uuid(),
-    instrument,
-    kioskId,
+exports.runSampleTest = async (req, res, next) => {
+  const {
+    instrumentId,
     samples,
+    kioskId,
     duration,
     timestamp,
-  };
+    user,
+  } = req.body;
 
-  DUMMY_TESTS.push(DUMMY_SAMPLE_TEST); //async code
+  let kiosk;
+  try {
+    kiosk = await Kiosk.findOne({ kioskId });
+  } catch (err) {
+    return next(new HttpError("Something went wrong!", 500));
+  }
 
-  res.status(201).json({ test: DUMMY_SAMPLE_TEST });
+  if (!kiosk) {
+    return next(new HttpError("Kiosk does not exist", 404));
+  }
+
+  const testedSample = new SampleTest({
+    instrumentId,
+    kiosk: kiosk._id,
+    samples,
+    duration,
+    doneOn: new Date(timestamp),
+    doneBy: user,
+    timestamp,
+  });
+  // Starting a session to update kiosk and SampleTest tables
+  try {
+    let sess = await mongoose.startSession();
+    sess.startTransaction();
+    await testedSample.save({ session: sess });
+
+    kiosk.samplesInTest.push(testedSample); // adding newly created test
+    kiosk.instruments.map((instrument) => {
+      //changing status of the instrument
+      if (instrument.id === instrumentId) {
+        instrument.filled = true;
+      }
+    });
+    await kiosk.save({ session: sess });
+    sess.commitTransaction();
+  } catch (err) {
+    console.log(err);
+    return next(new HttpError("Could not save data", 500));
+  }
+
+  res.status(201).json({ test: testedSample });
 };
 
-exports.postTestRunCompletion = (req, res, next) => {};
+exports.postSampleRemovalFromInstrument = async (req, res, next) => {
+  const { kioskId, instrumentId } = req.body;
+  //getting the kiosk object
+  let kiosk;
+  try {
+    kiosk = await Kiosk.findOne({ kioskId });
+  } catch (err) {
+    return next(new HttpError("Something went wrong!", 500));
+  }
+
+  if (!kiosk) {
+    return next(new HttpError("Kiosk does not exist", 404));
+  }
+  //getting the sample test object
+  let sampleTest;
+  try {
+    sampleTest = await SampleTest.findOne({ kiosk: kiosk._id, instrumentId });
+  } catch (err) {
+    return next(new HttpError("Something went wrong!", 500));
+  }
+
+  if (!sampleTest) {
+    return next(new HttpError("sampleTest does not exist", 404));
+  }
+
+  try {
+    kiosk.samplesInTest.pull(sampleTest._id);
+    kiosk.instruments.map((instrument) => {
+      //changing status of the instrument
+      if (instrument.id === instrumentId) {
+        instrument.filled = false;
+      }
+    });
+
+    await kiosk.save();
+  } catch (error) {
+    return next(new HttpError("Could not update data", 500));
+  }
+
+  res.json({ message: "Successfully updated!" });
+};

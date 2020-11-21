@@ -10,13 +10,14 @@ const sampleTestSchema = new Schema({
       name: String,
     },
   ],
-  kioskId: {
+  kiosk: {
     type: Schema.Types.ObjectId,
     ref: "Kiosk",
   },
   duration: Number,
-  timeStamp: Date,
+  timestamp: Number,
   doneBy: String,
+  doneOn: String,
 });
 
 module.exports = mongoose.model("SampleTest", sampleTestSchema);
