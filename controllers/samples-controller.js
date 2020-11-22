@@ -56,6 +56,12 @@ exports.runSampleTest = async (req, res, next) => {
     timestamp,
   });
   // Starting a session to update kiosk and SampleTest tables
+  if (samples.length === 0) {
+    return next(new HttpError("Enter atleast one sample!", 500));
+  }
+  if (duration <= 0) {
+    return next(new HttpError("Duration should be greater than zero!", 500));
+  }
   try {
     let sess = await mongoose.startSession();
     sess.startTransaction();
@@ -82,8 +88,8 @@ exports.runSampleTest = async (req, res, next) => {
   try {
     schedule.scheduleJob(date, function () {
       // Message for notification on completion
-      // const notificationMessage = `Hi ${user.username}, Test completed in ${instrumentId}. Please remove sample/s from the instrument`;
-      // sendSMS(user.contact, notificationMessage);
+      const notificationMessage = `Hi ${user.username}, Test completed in ${instrumentId}. Please remove sample/s from the instrument`;
+      sendSMS(user.contact, notificationMessage);
       console.log("Message sent");
     });
   } catch (error) {

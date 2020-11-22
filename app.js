@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
@@ -8,14 +9,14 @@ const authRoutes = require("./routes/auth-routes");
 const instrumentRoutes = require("./routes/instrument-routes");
 const kioskRoutes = require("./routes/kiosk-routes");
 
-const { MONGODB_URI } = require("./config/keys");
+const mongodbURI = process.env.MONGODB_URI;
 
 const app = express();
 
 app.use(bodyParser.json());
 
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+  res.setHeader("Access-Control-Allow-Origin", "*"); //http://localhost:3000
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, PATCH, DELETE"
@@ -46,7 +47,7 @@ app.use((error, req, res, next) => {
 });
 
 mongoose
-  .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then((result) => {
     console.log("DB Connected!");
     const server = app.listen(5000);
