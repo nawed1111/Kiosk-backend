@@ -1,5 +1,4 @@
 const HttpError = require("../models/http-error");
-const { DUMMY_KIOK_INSTRUMENTS } = require("../models/kiosk-model");
 
 const Kiosk = require("../models/kioskModel");
 
