@@ -1,7 +1,9 @@
+require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const HttpError = require("../models/http-error");
 const { DUMMY_USERS } = require("../models/users-model");
-const { JWT_SECRET } = require("../config/keys");
+
+const jwtSecretKeyForUsers = process.env.JWT_SECRET_USERS;
 
 const io = require("../socket.js");
 
@@ -33,7 +35,7 @@ exports.verifyUserPin = (req, res, next) => {
   try {
     token = jwt.sign(
       { email: user.email, userId: user.id, contact: user.contact },
-      JWT_SECRET,
+      jwtSecretKeyForUsers,
       { expiresIn: "1h" }
     );
   } catch (err) {
@@ -65,7 +67,7 @@ exports.login = (req, res, next) => {
   try {
     token = jwt.sign(
       { email: user.email, userId: user.id, contact: user.contact },
-      JWT_SECRET,
+      jwtSecretKeyForUsers,
       { expiresIn: "1h" }
     );
   } catch (err) {
