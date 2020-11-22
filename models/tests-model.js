@@ -1,1 +1,0 @@
-exports.DUMMY_TESTS = [];

@@ -1,20 +1,20 @@
 exports.DUMMY_USERS = [
   {
     id: "123456",
-    username: "xyz",
+    username: "nanjum",
     name: "Chandler Bing",
     email: "email@gmail.com",
-    contact: 999999999,
+    contact: "+919123929891",
     password: "123",
     pin: "1234",
   },
   {
     id: "123457",
-    username: "abc",
-    name: "Joe Tribiani",
+    username: "akumar",
+    name: "Abhishek Kumar",
     email: "email@gmail.com",
-    contact: 999999999,
-    password: "1234",
-    pin: "1111",
+    contact: "+353894442773",
+    password: "123",
+    pin: "1234",
   },
 ];

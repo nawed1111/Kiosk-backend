@@ -8,7 +8,7 @@ const kioskSchema = new Schema({
     required: true,
   },
   rfreader: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Types.ObjectId,
     ref: "Rfreader",
   },
   instruments: [
@@ -21,7 +21,7 @@ const kioskSchema = new Schema({
   ],
   samplesInTest: [
     {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Types.ObjectId,
       ref: "SampleTest",
     },
   ],

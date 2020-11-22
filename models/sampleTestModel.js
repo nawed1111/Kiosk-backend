@@ -11,9 +11,10 @@ const sampleTestSchema = new Schema({
     },
   ],
   kiosk: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Types.ObjectId,
     ref: "Kiosk",
   },
+  status: String,
   duration: Number,
   timestamp: Number,
   doneBy: String,
