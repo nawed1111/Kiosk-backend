@@ -5,7 +5,7 @@ const { DUMMY_USERS } = require("../models/users-model");
 
 const jwtSecretKeyForUsers = process.env.JWT_SECRET_USERS;
 
-const io = require("../socket.js");
+const io = require("../util/socket");
 
 exports.getUserById = (req, res, next) => {
   const userId = req.params.uid;

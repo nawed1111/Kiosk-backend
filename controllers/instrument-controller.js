@@ -2,8 +2,6 @@ const HttpError = require("../models/http-error");
 
 const Kiosk = require("../models/kioskModel");
 
-const io = require("../socket");
-
 exports.getInstruments = async (req, res, next) => {
   const kioskId = req.params.kid;
 
