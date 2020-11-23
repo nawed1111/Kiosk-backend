@@ -1,6 +1,6 @@
 const HttpError = require("../models/http-error");
 const schedule = require("node-schedule");
-const io = require("../socket.js");
+const io = require("../util/socket");
 
 const sendSMS = require("../util/d7network");
 const mongoose = require("mongoose");
