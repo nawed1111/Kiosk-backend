@@ -61,11 +61,12 @@ mongoose
       socket.on("joinAuthRoom", (room) => {
         socket.join(room);
         console.log("Joined room: ", room);
+        console.log("Rooms: ", socket.adapter.rooms);
       });
-      socket.on("joinSampleRoom", (room) => {
-        socket.join(room);
-        console.log("Joined room: ", room);
-      });
+      // socket.on("joinSampleRoom", (room) => {
+      //   socket.join(room);
+      //   console.log("Joined room: ", room);
+      // });
       socket.on("disconnect", () => {
         console.log("Client Disconnected ", socket.id);
       });

@@ -18,8 +18,7 @@ exports.getSampleById = (req, res, next) => {
   if (!sample) {
     return next(new HttpError("Sample not found", 404));
   }
-
-  io.getIO().in(`${kioskId}-samples`).emit("scannedSample", sample);
+  io.getIO().in(kioskId).emit("scannedSample", sample);
 
   res.json(sample);
 };
@@ -88,8 +87,8 @@ exports.runSampleTest = async (req, res, next) => {
   try {
     schedule.scheduleJob(date, function () {
       // Message for notification on completion
-      const notificationMessage = `Hi ${user.username}, Test completed in ${instrumentId}. Please remove sample/s from the instrument`;
-      sendSMS(user.contact, notificationMessage);
+      // const notificationMessage = `Hi ${user.username}, Test completed in ${instrumentId}. Please remove sample/s from the instrument`;
+      // sendSMS(user.contact, notificationMessage);
       console.log("Message sent");
     });
   } catch (error) {
