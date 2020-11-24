@@ -11,6 +11,9 @@ router.use(CheckAuth);
 
 router.put("/run-test", samplesController.runSampleTest);
 
-router.patch("/post-sample-removal", samplesController.postSampleRemovalFromInstrument);
+router.patch(
+  "/post-sample-removal",
+  samplesController.postSampleRemovalFromInstrument
+);
 
 module.exports = router;

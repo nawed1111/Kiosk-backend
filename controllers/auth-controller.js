@@ -4,6 +4,7 @@ const HttpError = require("../models/http-error");
 const { DUMMY_USERS } = require("../models/users-model");
 
 const jwtSecretKeyForUsers = process.env.JWT_SECRET_USERS;
+// const jwtSecretKeyForAdmin = process.env.JWT_SECRET_ADMIN;
 
 const io = require("../util/socket");
 
@@ -64,12 +65,14 @@ exports.login = (req, res, next) => {
     return next(new HttpError("Incorrect password!", 422));
   }
   let token;
+  // let secretKey;
+  // if (user.role === "admin") secretKey = jwtSecretKeyForAdmin;
+  // if (user.role === "standard-user") secretKey = jwtSecretKeyForUsers;
+
   try {
-    token = jwt.sign(
-      { email: user.email, userId: user.id, contact: user.contact },
-      jwtSecretKeyForUsers,
-      { expiresIn: "1h" }
-    );
+    token = jwt.sign({ userId: user.id }, jwtSecretKeyForUsers, {
+      expiresIn: "1h",
+    });
   } catch (err) {
     return next(new HttpError("Sign in failed", 500));
   }
@@ -81,6 +84,7 @@ exports.login = (req, res, next) => {
       email: user.email,
       contact: user.contact,
       username: user.username,
+      role: user.role,
     },
   });
 };

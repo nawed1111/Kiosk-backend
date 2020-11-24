@@ -34,6 +34,7 @@ exports.runSampleTest = async (req, res, next) => {
   } = req.body;
 
   let kiosk;
+  console.log(kioskId);
   try {
     kiosk = await Kiosk.findOne({ kioskId });
   } catch (err) {
