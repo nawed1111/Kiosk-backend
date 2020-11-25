@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const HttpError = require("../models/http-error");
 const { DUMMY_USERS } = require("../models/users-model");
 
-const jwtSecretKeyForUsers = process.env.JWT_SECRET_USERS;
+const jwtSecretKey = process.env.JWT_SECRET_USERS;
 // const jwtSecretKeyForAdmin = process.env.JWT_SECRET_ADMIN;
 
 const io = require("../util/socket");
@@ -23,6 +23,21 @@ exports.getUserById = (req, res, next) => {
   });
 };
 
+exports.getUsers = (req, res, next) => {
+  const users = DUMMY_USERS.map((user) => {
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      contact: user.contact,
+      role: user.role,
+    };
+  });
+
+  res.status(200).json({ message: "Fetched users sucessfully", users });
+};
+
 exports.verifyUserPin = (req, res, next) => {
   const { userId, pin } = req.body;
   const user = DUMMY_USERS.find((u) => u.id === userId);
@@ -35,8 +50,16 @@ exports.verifyUserPin = (req, res, next) => {
   let token;
   try {
     token = jwt.sign(
-      { email: user.email, userId: user.id, contact: user.contact },
-      jwtSecretKeyForUsers,
+      {
+        user: {
+          userId: user.id,
+          email: user.email,
+          contact: user.contact,
+          username: user.username,
+          role: user.role,
+        },
+      },
+      jwtSecretKey,
       { expiresIn: "1h" }
     );
   } catch (err) {
@@ -70,21 +93,24 @@ exports.login = (req, res, next) => {
   // if (user.role === "standard-user") secretKey = jwtSecretKeyForUsers;
 
   try {
-    token = jwt.sign({ userId: user.id }, jwtSecretKeyForUsers, {
-      expiresIn: "1h",
-    });
+    token = jwt.sign(
+      {
+        user: {
+          userId: user.id,
+          email: user.email,
+          contact: user.contact,
+          username: user.username,
+          role: user.role,
+        },
+      },
+      jwtSecretKey,
+      {
+        expiresIn: "1h",
+      }
+    );
   } catch (err) {
     return next(new HttpError("Sign in failed", 500));
   }
 
-  res.json({
-    token: token,
-    user: {
-      userId: user.id,
-      email: user.email,
-      contact: user.contact,
-      username: user.username,
-      role: user.role,
-    },
-  });
+  res.json({ token });
 };

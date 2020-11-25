@@ -6,9 +6,11 @@ const checkAuth = require("../middleware/check-auth");
 
 const router = express.Router();
 
-router.get("/:kid", kioskController.getKiosk);
+// router.use(checkAuth);
 
-router.use(checkAuth);
+router.get("/", checkAuth, roleRequired("admin"), kioskController.getKiosks);
+
+router.get("/:kid", kioskController.getKiosk);
 
 router.put("/:kid", roleRequired("admin"), kioskController.createKiosk);
 
