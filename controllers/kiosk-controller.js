@@ -18,6 +18,31 @@ exports.getKiosk = async (req, res, next) => {
   res.json({ kioskId: kiosk.kioskId });
 };
 
+exports.getKiosks = async (req, res, next) => {
+  const currentPage = req.query.page || 1;
+  const perPage = 5;
+  try {
+    const totalKiosks = await Kiosk.find().countDocuments();
+    const kiosks = await Kiosk.find()
+      .select("kioskId instruments._id created updated samplesInTest")
+      .lean()
+      .sort({ created: -1 })
+      .skip((currentPage - 1) * perPage)
+      .limit(perPage);
+
+    res.status(200).json({
+      message: "Fetched kiosks successfully.",
+      kiosks,
+      totalKiosks,
+    });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+
 exports.createKiosk = async (req, res, next) => {
   const kioskId = req.params.kid;
   const { instruments } = req.body;
