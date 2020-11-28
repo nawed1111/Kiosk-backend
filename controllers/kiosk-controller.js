@@ -2,8 +2,9 @@ const HttpError = require("../models/http-error");
 
 const Kiosk = require("../models/kioskModel");
 
-exports.getKiosk = async (req, res, next) => {
+exports.getKioskById = async (req, res, next) => {
   const kioskId = req.params.kid;
+
   let kiosk;
   try {
     kiosk = await Kiosk.findOne({ kioskId });
@@ -15,7 +16,7 @@ exports.getKiosk = async (req, res, next) => {
     return next(new HttpError("Kiosk not found!", 500));
   }
 
-  res.json({ kioskId: kiosk.kioskId });
+  res.json({ kiosk: kiosk, message: "Fetched kiosk successfully" });
 };
 
 exports.getKiosks = async (req, res, next) => {
@@ -53,7 +54,7 @@ exports.createKiosk = async (req, res, next) => {
     return next(new HttpError("Creating kiosk failed!", 500));
   }
   if (existingKiosk) {
-    return next(new HttpError("A kiosk with same id exists alreday"));
+    return next(new HttpError("A kiosk with same id alreday exists "), 500);
   }
 
   const createdKiosk = new Kiosk({
@@ -82,7 +83,7 @@ exports.updateKiosk = async (req, res, next) => {
   }
   if (!kiosk) {
     return next(
-      new HttpError(`A kiosk with same id ${kioskId} does not exist`, 422) //update status code later
+      new HttpError(`A kiosk with id ${kioskId} does not exist`, 422) //update status code later
     );
   }
 
@@ -96,4 +97,16 @@ exports.updateKiosk = async (req, res, next) => {
   }
 
   res.json(kiosk);
+};
+
+exports.deleteKiosk = async (req, res, next) => {
+  const kioskId = req.params.kid;
+  let kiosk;
+  try {
+    kiosk = await Kiosk.deleteOne({ kioskId });
+  } catch (err) {
+    return next(new HttpError("Deleting kiosk failed!", 500));
+  }
+
+  res.json({ message: "Deleted successfully" });
 };

@@ -20,18 +20,11 @@ exports.getSampleById = (req, res, next) => {
   }
   io.getIO().in(kioskId).emit("scannedSample", sample);
 
-  res.json(sample);
+  res.json({ message: "Sample fetched successfully", sample });
 };
 
 exports.runSampleTest = async (req, res, next) => {
-  const {
-    instrumentId,
-    samples,
-    kioskId,
-    duration,
-    timestamp,
-    user,
-  } = req.body;
+  const { instrumentId, samples, kioskId, duration, timestamp } = req.body;
 
   let kiosk;
   console.log(kioskId);
@@ -51,8 +44,8 @@ exports.runSampleTest = async (req, res, next) => {
     samples,
     duration,
     status: "Sample not removed",
-    doneOn: new Date(timestamp),
-    doneBy: user.username,
+    doneOn: new Date(+timestamp),
+    doneBy: req.user.username,
     timestamp,
   });
   // Starting a session to update kiosk and SampleTest tables
@@ -81,15 +74,15 @@ exports.runSampleTest = async (req, res, next) => {
     return next(new HttpError("Could not save data", 500));
   }
   // Message for notification on start
-  // const notificationMessage = `Hi ${user.username}, Test started in ${instrumentId} for ${duration} minutes. A text message will be sent on completion`;
-  // sendSMS(user.contact, notificationMessage);
+  // const notificationMessage = `Hi ${req.user.username}, Test started in ${instrumentId} for ${duration} minutes. A text message will be sent on completion`;
+  // sendSMS(req.user.contact, notificationMessage);
 
-  const date = new Date(timestamp + duration * 60 * 1000);
+  const date = new Date(+timestamp + duration * 60 * 1000);
   try {
     schedule.scheduleJob(date, function () {
       // Message for notification on completion
-      // const notificationMessage = `Hi ${user.username}, Test completed in ${instrumentId}. Please remove sample/s from the instrument`;
-      // sendSMS(user.contact, notificationMessage);
+      // const notificationMessage = `Hi ${req.user.username}, Test completed in ${instrumentId}. Please remove sample/s from the instrument`;
+      // sendSMS(req.user.contact, notificationMessage);
       console.log("Message sent");
     });
   } catch (error) {
@@ -127,28 +120,39 @@ exports.postSampleRemovalFromInstrument = async (req, res, next) => {
     return next(new HttpError("sampleTest does not exist", 404));
   }
   // console.log(sampleTest._id, instrumentId, kioskId);
-  try {
-    let sess = await mongoose.startSession();
-    sess.startTransaction();
+  const hasTestCompleted =
+    +sampleTest.timestamp +
+    sampleTest.duration * 60 * 1000 -
+    new Date().getTime();
+  if (hasTestCompleted <= 0) {
+    try {
+      let sess = await mongoose.startSession();
+      sess.startTransaction();
 
-    kiosk.samplesInTest.pull(sampleTest._id);
+      kiosk.samplesInTest.pull(sampleTest._id);
 
-    kiosk.instruments.map((instrument) => {
-      //changing status of the instrument
-      if (instrument.id === instrumentId) {
-        instrument.filled = false;
-      }
+      kiosk.instruments.map((instrument) => {
+        //changing status of the instrument
+        if (instrument.id === instrumentId) {
+          instrument.filled = false;
+        }
+      });
+
+      await kiosk.save({ session: sess });
+
+      sampleTest.status = "Sample Removed";
+      await sampleTest.save({ session: sess });
+      sess.commitTransaction();
+    } catch (error) {
+      console.log(error);
+      return next(new HttpError("Could not update data", 500));
+    }
+
+    res.json({ message: "Updated successfully", test: sampleTest });
+  } else {
+    res.status(500).json({
+      message: "Test still running! Cannot update",
+      timeRemaining: `${hasTestCompleted / 1000} seconds`,
     });
-
-    await kiosk.save({ session: sess });
-
-    sampleTest.status = "Sample Removed";
-    await sampleTest.save({ session: sess });
-    sess.commitTransaction();
-  } catch (error) {
-    console.log(error);
-    return next(new HttpError("Could not update data", 500));
   }
-
-  res.json({ test: sampleTest });
 };

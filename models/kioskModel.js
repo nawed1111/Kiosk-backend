@@ -15,8 +15,12 @@ const kioskSchema = new Schema({
     {
       id: String,
       name: String,
-      filled: Boolean,
-      recommendedTemperature: Number,
+      properties: [
+        {
+          name: String,
+          display: false,
+        },
+      ],
     },
   ],
   samplesInTest: [
