@@ -75,6 +75,8 @@ exports.loginFromLIMS = async (req, res, next) => {
     console.log(error);
     return next(new HttpError("Could not fetch user from DB", 500));
   }
+  let role;
+  if (existingUser) role = existingUser.role;
 
   let token;
   try {
@@ -85,7 +87,7 @@ exports.loginFromLIMS = async (req, res, next) => {
           email: user.email,
           contact: user.contact,
           username: user.username,
-          role: user.role,
+          role: role || "standard-user",
         },
       },
       jwtSecretKey,
@@ -104,39 +106,53 @@ exports.loginFromLIMS = async (req, res, next) => {
   }
 };
 
-exports.getUsersFromKioskDB = (req, res, next) => {
-  const users = DUMMY_USERS.map((user) => {
-    return {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      email: user.email,
-      contact: user.contact,
-      role: user.role,
-    };
-  });
+exports.getUsersFromKioskDB = async (req, res, next) => {
+  let users;
+  try {
+    users = await User.find().lean();
+  } catch (error) {
+    console.log(error);
+    return next(new HttpError("Could not fetch users", 500));
+  }
 
   res.status(200).json({ message: "Fetched users sucessfully", users });
 };
 
-exports.verifyUserPinFromKioskDB = (req, res, next) => {
+exports.verifyUserPinFromKioskDB = async (req, res, next) => {
   const { userId, pin } = req.body;
-  const user = DUMMY_USERS.find((u) => u.id === userId);
-  if (!user) {
+  let user;
+  try {
+    user = await User.findOne({ userId });
+    if (!user) {
+      return next(new HttpError("User not found!", 404));
+    }
+    const isEqual = await bcrypt.compare(pin, user.pin);
+    if (!isEqual) {
+      return next(new HttpError("Incorrect pin!", 422));
+    }
+  } catch (error) {
+    console.log(error);
+    return next(new HttpError("Something went wrong", 500));
+  }
+
+  /**************API call to LIMS****************/
+
+  const userDetails = DUMMY_USERS.find((u) => u.id === userId); //Async code
+  if (!userDetails) {
     return next(new HttpError("User not found!", 404));
   }
-  if (user.pin !== pin) {
-    return next(new HttpError("Incorrect pin!", 422));
-  }
+
+  /**************API call to LIMS****************/
+
   let token;
   try {
     token = jwt.sign(
       {
         user: {
-          userId: user.id,
-          email: user.email,
-          contact: user.contact,
-          username: user.username,
+          userId,
+          email: userDetails.email,
+          contact: userDetails.contact,
+          username: userDetails.username,
           role: user.role,
         },
       },
@@ -144,16 +160,11 @@ exports.verifyUserPinFromKioskDB = (req, res, next) => {
       { expiresIn: "1h" }
     );
   } catch (err) {
-    return next(new HttpError("Sign in failed", 500));
+    return next(new HttpError("Token could not be generated", 500));
   }
   res.json({
+    message: "Signed in successfully",
     token: token,
-    user: {
-      userId: user.id,
-      email: user.email,
-      contact: user.contact,
-      username: user.username,
-    },
   });
 };
 
@@ -191,13 +202,14 @@ exports.createUserInKioskDB = async (req, res, next) => {
 
   if (existingUser && existingUser.firstTimeLogin) {
     existingUser.pin = hashedPin;
+    existingUser.firstTimeLogin = false;
     try {
       await existingUser.save();
+      return res.json({ message: "User updated successfully in kiosk DB" });
     } catch (error) {
       return next(new HttpError("pin could not be saved", 500));
     }
   }
-
   const newUser = new User({
     userId,
     pin: hashedPin,

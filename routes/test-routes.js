@@ -9,6 +9,8 @@ router.use(CheckAuth);
 
 router.get("/:kid/:sid", testController.getSampleById);
 
+// router.get("/running/:tid", testController.getRunningTestById);
+
 router.put("/run-test", testController.runSampleTest);
 
 router.patch(

@@ -8,8 +8,7 @@ const kioskSchema = new Schema({
     required: true,
   },
   rfreader: {
-    type: mongoose.Types.ObjectId,
-    ref: "Rfreader",
+    type: String,
   },
   instruments: [
     {
@@ -18,7 +17,6 @@ const kioskSchema = new Schema({
       properties: [
         {
           name: String,
-          display: false,
         },
       ],
     },

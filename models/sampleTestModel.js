@@ -17,10 +17,6 @@ const sampleTestSchema = new Schema({
     type: mongoose.Types.ObjectId,
     ref: "Kiosk",
   },
-  status: {
-    type: String,
-    required: true,
-  },
   duration: {
     type: Number,
     required: true,

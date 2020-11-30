@@ -18,7 +18,6 @@ router.put(
   [
     check("pin").notEmpty().isLength({ min: 4 }).isNumeric(),
     check("confirmPin").notEmpty().isLength({ min: 4 }).isNumeric(),
-    // check("pin").equals(body("confirmPin")),
   ],
   authController.createUserInKioskDB
 );

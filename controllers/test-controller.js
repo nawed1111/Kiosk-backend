@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 
 const SampleTest = require("../models/sampleTestModel");
 const Kiosk = require("../models/kioskModel");
+const { DUMMY_INSTRUMENTS } = require("../models/instrument-model-LIMS");
 
 const { DUMMY_SAMPLES } = require("../models/sample-model");
 
@@ -23,11 +24,30 @@ exports.getSampleById = (req, res, next) => {
   res.json({ message: "Sample fetched successfully", sample });
 };
 
+/*
+exports.getRunningTestById = async (req, res, next) => {
+  const testId = req.params.tid;
+  let test;
+  try {
+    test = await SampleTest.findById(testId);
+  } catch (err) {
+    return next(new HttpError("Something went wrong!", 500));
+  }
+
+  if (!test) {
+    return next(new HttpError("Test does not exist", 404));
+  }
+
+  res.json({ message: "Test fetched", test });
+};
+
+*/
+
 exports.runSampleTest = async (req, res, next) => {
   const { instrumentId, samples, kioskId, duration, timestamp } = req.body;
 
   let kiosk;
-  console.log(kioskId);
+
   try {
     kiosk = await Kiosk.findOne({ kioskId });
   } catch (err) {
@@ -43,7 +63,6 @@ exports.runSampleTest = async (req, res, next) => {
     kiosk: kiosk._id,
     samples,
     duration,
-    status: "Sample not removed",
     doneOn: new Date(+timestamp),
     doneBy: req.user.username,
     timestamp,
@@ -60,22 +79,27 @@ exports.runSampleTest = async (req, res, next) => {
     sess.startTransaction();
     await testedSample.save({ session: sess });
 
-    kiosk.samplesInTest.push(testedSample._id); // adding newly created test
-    kiosk.instruments.map((instrument) => {
-      //changing status of the instrument
-      if (instrument.id === instrumentId) {
-        instrument.filled = true;
-      }
-    });
+    kiosk.samplesInTest.push(testedSample._id);
+
+    /**************API call to LIMS****************/
+
+    const instrument = DUMMY_INSTRUMENTS.find(
+      (instrument) => instrument.id === instrumentId
+    );
+    if (!instrument) {
+      return next(new HttpError("Could not find instrument", 404));
+    }
+
+    instrument.properties["isFilled"] = true;
+
+    /**************API call to LIMS*****************/
+
     await kiosk.save({ session: sess });
     sess.commitTransaction();
   } catch (err) {
     console.log(err);
     return next(new HttpError("Could not save data", 500));
   }
-  // Message for notification on start
-  // const notificationMessage = `Hi ${req.user.username}, Test started in ${instrumentId} for ${duration} minutes. A text message will be sent on completion`;
-  // sendSMS(req.user.contact, notificationMessage);
 
   const date = new Date(+timestamp + duration * 60 * 1000);
   try {
@@ -92,26 +116,11 @@ exports.runSampleTest = async (req, res, next) => {
 };
 
 exports.postSampleRemovalFromInstrument = async (req, res, next) => {
-  const { kioskId, instrumentId } = req.body;
-  //getting the kiosk object
-  let kiosk;
-  try {
-    kiosk = await Kiosk.findOne({ kioskId });
-  } catch (err) {
-    return next(new HttpError("Something went wrong!", 500));
-  }
+  const { testId } = req.body;
 
-  if (!kiosk) {
-    return next(new HttpError("Kiosk does not exist", 404));
-  }
-  //getting the sample test object
   let sampleTest;
   try {
-    sampleTest = await SampleTest.findOne({
-      kiosk: kiosk._id,
-      instrumentId,
-      status: "Sample not removed",
-    });
+    sampleTest = await SampleTest.findById(testId).populate("kiosk");
   } catch (err) {
     return next(new HttpError("Something went wrong!", 500));
   }
@@ -119,32 +128,37 @@ exports.postSampleRemovalFromInstrument = async (req, res, next) => {
   if (!sampleTest) {
     return next(new HttpError("sampleTest does not exist", 404));
   }
-  // console.log(sampleTest._id, instrumentId, kioskId);
-  const hasTestCompleted =
+
+  const kiosk = sampleTest.kiosk;
+
+  const timeLeft =
     +sampleTest.timestamp +
     sampleTest.duration * 60 * 1000 -
     new Date().getTime();
-  if (hasTestCompleted <= 0) {
+  if (timeLeft <= 0) {
     try {
       let sess = await mongoose.startSession();
       sess.startTransaction();
 
       kiosk.samplesInTest.pull(sampleTest._id);
 
-      kiosk.instruments.map((instrument) => {
-        //changing status of the instrument
-        if (instrument.id === instrumentId) {
-          instrument.filled = false;
-        }
-      });
-
       await kiosk.save({ session: sess });
 
-      sampleTest.status = "Sample Removed";
-      await sampleTest.save({ session: sess });
+      /**************API call to LIMS****************/
+
+      const instrument = DUMMY_INSTRUMENTS.find(
+        (instrument) => instrument.id === sampleTest.instrumentId
+      );
+      if (!instrument) {
+        return next(new HttpError("Could not find instrument", 404));
+      }
+
+      instrument.properties["isFilled"] = false;
+
+      /**************API call to LIMS*****************/
+
       sess.commitTransaction();
     } catch (error) {
-      console.log(error);
       return next(new HttpError("Could not update data", 500));
     }
 
@@ -152,7 +166,7 @@ exports.postSampleRemovalFromInstrument = async (req, res, next) => {
   } else {
     res.status(500).json({
       message: "Test still running! Cannot update",
-      timeRemaining: `${hasTestCompleted / 1000} seconds`,
+      timeRemaining: `${timeLeft / 1000} seconds`,
     });
   }
 };

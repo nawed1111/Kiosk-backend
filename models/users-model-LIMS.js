@@ -7,7 +7,6 @@ exports.DUMMY_USERS = [
     contact: "+919123929891",
     password: "123",
     pin: "1234",
-    role: "standard-user",
   },
   {
     id: "123457",
@@ -17,7 +16,6 @@ exports.DUMMY_USERS = [
     contact: "+353894442773",
     password: "123",
     pin: "1234",
-    role: "standard-user",
   },
   {
     id: "000000",
@@ -27,6 +25,5 @@ exports.DUMMY_USERS = [
     contact: "+99999999999",
     password: "123",
     pin: "1234",
-    role: "admin",
   },
 ];

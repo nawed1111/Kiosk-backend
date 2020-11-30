@@ -4,7 +4,7 @@ const Kiosk = require("../models/kioskModel");
 
 exports.getKioskById = async (req, res, next) => {
   const kioskId = req.params.kid;
-
+  console.log(kioskId);
   let kiosk;
   try {
     kiosk = await Kiosk.findOne({ kioskId });
@@ -16,7 +16,7 @@ exports.getKioskById = async (req, res, next) => {
     return next(new HttpError("Kiosk not found!", 500));
   }
 
-  res.json({ kiosk: kiosk, message: "Fetched kiosk successfully" });
+  res.json({ message: "Fetched kiosk successfully" });
 };
 
 exports.getKiosks = async (req, res, next) => {
@@ -25,7 +25,8 @@ exports.getKiosks = async (req, res, next) => {
   try {
     const totalKiosks = await Kiosk.find().countDocuments();
     const kiosks = await Kiosk.find()
-      .select("kioskId instruments._id created updated samplesInTest")
+      .populate("samplesInTest")
+      .select("kioskId rfreader instruments created updated samplesInTest")
       .lean()
       .sort({ created: -1 })
       .skip((currentPage - 1) * perPage)
@@ -45,8 +46,7 @@ exports.getKiosks = async (req, res, next) => {
 };
 
 exports.createKiosk = async (req, res, next) => {
-  const kioskId = req.params.kid;
-  const { instruments } = req.body;
+  const { kioskId, instruments, rfreader } = req.body;
   let existingKiosk;
   try {
     existingKiosk = await Kiosk.findOne({ kioskId });
@@ -59,6 +59,7 @@ exports.createKiosk = async (req, res, next) => {
 
   const createdKiosk = new Kiosk({
     kioskId,
+    rfreader,
     instruments,
     updated: Date.now(),
   });
@@ -66,15 +67,15 @@ exports.createKiosk = async (req, res, next) => {
   try {
     await createdKiosk.save();
   } catch (err) {
+    console.log(err);
     return next(new HttpError("Something went wrong!", 500));
   }
 
-  res.json({ kiosk: createdKiosk });
+  res.json({ message: "Kiosk created successfully", kiosk: createdKiosk });
 };
 
 exports.updateKiosk = async (req, res, next) => {
-  const kioskId = req.params.kid;
-  const { instruments } = req.body;
+  const { kioskId, instruments } = req.body;
   let kiosk;
   try {
     kiosk = await Kiosk.findOne({ kioskId });
@@ -96,7 +97,7 @@ exports.updateKiosk = async (req, res, next) => {
     return next(new HttpError("Something went wrong!", 500));
   }
 
-  res.json(kiosk);
+  res.json({ message: "Kiosk updated successfully!", kiosk });
 };
 
 exports.deleteKiosk = async (req, res, next) => {
