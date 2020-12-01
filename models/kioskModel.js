@@ -8,15 +8,17 @@ const kioskSchema = new Schema({
     required: true,
   },
   rfreader: {
-    type: mongoose.Types.ObjectId,
-    ref: "Rfreader",
+    type: String,
   },
   instruments: [
     {
       id: String,
       name: String,
-      filled: Boolean,
-      recommendedTemperature: Number,
+      properties: [
+        {
+          name: String,
+        },
+      ],
     },
   ],
   samplesInTest: [

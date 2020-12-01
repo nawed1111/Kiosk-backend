@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 
 const HttpError = require("./models/http-error");
-const samplesRoutes = require("./routes/samples-routes");
+const testRoutes = require("./routes/test-routes");
 const authRoutes = require("./routes/auth-routes");
 const instrumentRoutes = require("./routes/instrument-routes");
 const kioskRoutes = require("./routes/kiosk-routes");
@@ -31,7 +31,7 @@ app.use((req, res, next) => {
 app.use("/api/kiosks", kioskRoutes);
 app.use("/api/instruments", instrumentRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/samples", samplesRoutes);
+app.use("/api/test", testRoutes);
 
 app.use((req, res, next) => {
   const error = new HttpError("Could not found this  route", 404);

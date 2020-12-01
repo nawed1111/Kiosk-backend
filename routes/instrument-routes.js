@@ -7,7 +7,11 @@ const router = express.Router();
 
 router.use(checkAuth);
 
+router.get("/instrument/:iid", instrumentController.getInstrumentFromLIMS);
+router.post(
+  "/instrument/:iid",
+  instrumentController.getSelectedPropertiesOfInstrumentFromLIMS
+);
 router.get("/:kid", instrumentController.getInstruments);
-router.get("/:id", instrumentController.getInstrument);
 
 module.exports = router;

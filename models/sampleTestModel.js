@@ -3,7 +3,10 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const sampleTestSchema = new Schema({
-  instrumentId: String,
+  instrumentId: {
+    type: String,
+    required: true,
+  },
   samples: [
     {
       id: String,
@@ -14,11 +17,22 @@ const sampleTestSchema = new Schema({
     type: mongoose.Types.ObjectId,
     ref: "Kiosk",
   },
-  status: String,
-  duration: Number,
-  timestamp: Number,
-  doneBy: String,
-  doneOn: String,
+  duration: {
+    type: Number,
+    required: true,
+  },
+  timestamp: {
+    type: Number,
+    required: true,
+  },
+  doneBy: {
+    type: String,
+    required: true,
+  },
+  doneOn: {
+    type: String,
+    required: true,
+  },
 });
 
 module.exports = mongoose.model("SampleTest", sampleTestSchema);
