@@ -4,7 +4,6 @@ const Kiosk = require("../models/kioskModel");
 
 exports.getKioskById = async (req, res, next) => {
   const kioskId = req.params.kid;
-  console.log(kioskId);
   let kiosk;
   try {
     kiosk = await Kiosk.findOne({ kioskId });

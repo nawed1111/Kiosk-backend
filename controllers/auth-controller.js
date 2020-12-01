@@ -96,6 +96,7 @@ exports.loginFromLIMS = async (req, res, next) => {
   if (!existingUser) {
     const newUser = new User({
       userId,
+      username: user.username,
       firstTimeLogin: true,
       role: "standard-user",
       updated: new Date(),
