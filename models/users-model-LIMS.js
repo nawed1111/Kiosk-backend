@@ -17,13 +17,4 @@ exports.DUMMY_USERS = [
     password: "123",
     pin: "1234",
   },
-  {
-    id: "000000",
-    username: "superuser",
-    name: "Super User",
-    email: "admin@gmail.com",
-    contact: "+99999999999",
-    password: "123",
-    pin: "1234",
-  },
 ];

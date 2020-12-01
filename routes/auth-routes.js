@@ -10,16 +10,23 @@ const router = express.Router();
 router.get("/:uid/:kid", authController.getUserByIdFromLIMS);
 router.post("/verify-pin", authController.verifyUserPinFromKioskDB);
 router.post("/login", authController.loginFromLIMS);
+router.post("/admin/login", authController.adminLogin);
 
 router.use(checkAuth);
 
 router.put(
-  "/create-user",
+  "/create-user/:uid",
+  [check("role").notEmpty()],
+  authController.createUserInKioskDB
+);
+
+router.patch(
+  "/update-user/:uid",
   [
     check("pin").notEmpty().isLength({ min: 4 }).isNumeric(),
     check("confirmPin").notEmpty().isLength({ min: 4 }).isNumeric(),
   ],
-  authController.createUserInKioskDB
+  authController.updateUserInKioskDB
 );
 
 router.get("/users", roleRequired("admin"), authController.getUsersFromKioskDB);

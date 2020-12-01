@@ -5,11 +5,11 @@ const CheckAuth = require("../middleware/check-auth");
 
 const router = express.Router();
 
-router.use(CheckAuth);
-
 router.get("/:kid/:sid", testController.getSampleById);
 
 // router.get("/running/:tid", testController.getRunningTestById);
+
+router.use(CheckAuth);
 
 router.put("/run-test", testController.runSampleTest);
 
