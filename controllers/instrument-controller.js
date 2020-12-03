@@ -1,4 +1,5 @@
 const HttpError = require("../models/http-error");
+const axios = require("axios");
 
 const { DUMMY_INSTRUMENTS } = require("../models/instrument-model-LIMS");
 const Kiosk = require("../models/kioskModel");
@@ -26,41 +27,69 @@ exports.getInstruments = async (req, res, next) => {
   });
 };
 
-exports.getInstrumentFromLIMS = (req, res, next) => {
+exports.getInstrumentFromLIMS = async (req, res, next) => {
   const instrumentId = req.params.iid;
 
-  const instrument = DUMMY_INSTRUMENTS.find(
-    (instrument) => instrument.id === instrumentId
-  );
-  if (!instrument) {
-    return next(new HttpError("Could not find instrument", 404));
+  console.log("Token: ", process.env.LIMS_ACCESS_TOKEN);
+  if (!process.env.LIMS_ACCESS_TOKEN) return next(HttpError("No token", 500));
+  try {
+    const response = await axios.get(
+      `http://localhost:3030/lims/api/instruments/${instrumentId}`,
+      {
+        headers: {
+          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+        },
+      }
+    );
+    res.json({
+      message: "Instrument detail fetched Successfully",
+      instrument: response.data,
+    });
+  } catch (error) {
+    next(error);
   }
-  res.json({ message: "Fetched Successfully", instrument });
 };
-
-exports.getSelectedPropertiesOfInstrumentFromLIMS = (req, res, next) => {
+/*
+exports.getSelectedPropertiesOfInstrumentFromLIMS = async (req, res, next) => {
   const instrumentId = req.params.iid;
   const { properties } = req.body;
   // console.log("Properties: ", properties);
-  const instrument = DUMMY_INSTRUMENTS.find(
-    (instrument) => instrument.id === instrumentId
-  );
-  if (!instrument) {
-    return next(new HttpError("Could not find instrument", 404));
+  console.log("Token: ", process.env.LIMS_ACCESS_TOKEN);
+  if (!process.env.LIMS_ACCESS_TOKEN) return next(HttpError("No token", 500));
+  try {
+    const response = await axios.get(
+      `http://localhost:3030/lims/api/instruments/${instrumentId}`,
+      {
+        headers: {
+          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+        },
+      }
+    );
+    // console.log("Instrrument ", response.data);
+
+    const checkedProperties = response.data.properties.filter((prop) =>
+      properties.includes(prop.property)
+    );
+    // console.log("checkedProperties ", checkedProperties);
+    res.json({
+      message: "Instrument detail fetched Successfully",
+      instrument: {
+        id: response.data.instrumentid,
+        name: response.data.name,
+        properties: checkedProperties,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
   }
 
+  /*
   let checkedProperties = {};
   properties.forEach((element) => {
     if (element.name in instrument.properties)
       checkedProperties[element.name] = instrument.properties[element.name];
   });
-  // console.log(checkedProperties);
-  res.json({
-    message: "Fetched Successfully",
-    instrument: {
-      id: instrument.id,
-      name: instrument.name,
-      properties: checkedProperties,
-    },
-  });
-};
+  */
+// console.log(checkedProperties);
+// };

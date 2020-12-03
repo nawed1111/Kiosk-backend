@@ -9,7 +9,8 @@ const sampleTestSchema = new Schema({
   },
   samples: [
     {
-      id: String,
+      _id: false,
+      sampleid: String,
       name: String,
     },
   ],

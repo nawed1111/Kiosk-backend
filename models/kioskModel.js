@@ -12,10 +12,12 @@ const kioskSchema = new Schema({
   },
   instruments: [
     {
-      id: String,
+      _id: false,
+      instrumentid: String,
       name: String,
       properties: [
         {
+          _id: false,
           name: String,
         },
       ],

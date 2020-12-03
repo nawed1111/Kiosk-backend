@@ -10,6 +10,9 @@ const router = express.Router();
 router.get("/:uid/:kid", authController.getUserByIdFromLIMS);
 router.post("/verify-pin", authController.verifyUserPinFromKioskDB);
 router.post("/login", authController.loginFromLIMS);
+router.post("/refresh-token", authController.refreshToken);
+router.delete("/logout", authController.logout);
+
 router.post("/admin/login", authController.adminLogin);
 
 router.use(checkAuth);

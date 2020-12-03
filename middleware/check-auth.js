@@ -1,8 +1,5 @@
-require("dotenv").config();
 const HttpError = require("../models/http-error");
 const jwt = require("jsonwebtoken");
-
-const jwtSecretKey = process.env.JWT_SECRET_USERS;
 
 module.exports = (req, res, next) => {
   if (req.method === "OPTIONS") {
@@ -13,7 +10,7 @@ module.exports = (req, res, next) => {
     if (!token) {
       throw new Error("Authentication failed!");
     }
-    const decodedToken = jwt.verify(token, jwtSecretKey);
+    const decodedToken = jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET);
 
     req.user = decodedToken.user; //passing user to next
     next();

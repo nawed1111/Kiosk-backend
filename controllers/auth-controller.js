@@ -1,6 +1,12 @@
-require("dotenv").config();
 const bcrypt = require("bcrypt");
 const { validationResult } = require("express-validator");
+const createError = require("http-errors");
+const {
+  signAccessToken,
+  signRefreshAccessToken,
+  verifyRefreshAccessToken,
+  deleteRefreshToken,
+} = require("../helpers/jwt_helper");
 
 const jwt = require("jsonwebtoken");
 const HttpError = require("../models/http-error");
@@ -131,30 +137,51 @@ exports.getUsersFromKioskDB = async (req, res, next) => {
 
 exports.verifyUserPinFromKioskDB = async (req, res, next) => {
   const { userId, pin } = req.body;
-  let user;
+  console.log(userId, pin);
   try {
-    user = await User.findOne({ userId });
-    if (!user) {
+    const existingUser = await User.findOne({ userId });
+    if (!existingUser) {
+      throw createError.NotFound(`User ${userId} is not registered`);
+    }
+
+    // console.log(existingUser);
+
+    const isEqual = await bcrypt.compare(pin, existingUser.pin);
+    if (!isEqual) {
+      throw createError.Unauthorized("Username/Password not valid");
+    }
+
+    /**************API call to LIMS*************
+     * for user details
+     * ***/
+
+    const userDetails = DUMMY_USERS.find((u) => u.id === userId);
+    if (!userDetails) {
       return next(new HttpError("User not found!", 404));
     }
-    const isEqual = await bcrypt.compare(pin, user.pin);
-    if (!isEqual) {
-      return next(new HttpError("Incorrect pin!", 422));
-    }
+
+    const user = {
+      userId,
+      email: userDetails.email,
+      contact: userDetails.contact,
+      username: userDetails.username,
+      role: existingUser.role,
+    };
+    /**************API call to LIMS****************/
+    // console.log(user);
+
+    const accessToken = await signAccessToken(user);
+    // console.log("Checkpost2===>>>>>");
+    const refreshToken = await signRefreshAccessToken(user);
+
+    // console.log("Checkpost3===>>>>>");
+
+    res.json({ accessToken, refreshToken });
   } catch (error) {
-    console.log(error);
-    return next(new HttpError("Something went wrong", 500));
+    next(error);
   }
-
-  /**************API call to LIMS****************/
-
-  const userDetails = DUMMY_USERS.find((u) => u.id === userId); //Async code
-  if (!userDetails) {
-    return next(new HttpError("User not found!", 404));
-  }
-
-  /**************API call to LIMS****************/
-
+};
+/*
   let token;
   try {
     token = jwt.sign(
@@ -177,6 +204,29 @@ exports.verifyUserPinFromKioskDB = async (req, res, next) => {
     message: "Signed in successfully",
     token: token,
   });
+};
+*/
+
+exports.refreshToken = async (req, res, next) => {
+  try {
+    const user = await verifyRefreshAccessToken(req);
+    const newAccessToken = await signAccessToken(user);
+    const newRefreshToken = await signRefreshAccessToken(user);
+
+    res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.logout = async (req, res, next) => {
+  try {
+    const output = await deleteRefreshToken(req);
+    if (output === "success")
+      res.status(204).json({ message: "Refresh Token deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
 };
 
 exports.createUserInKioskDB = async (req, res, next) => {
@@ -279,37 +329,29 @@ exports.updateUserInKioskDB = async (req, res, next) => {
 exports.adminLogin = async (req, res, next) => {
   const { username, password } = req.body;
 
-  let adminExists;
   try {
-    adminExists = await User.findOne({ username });
+    const adminExists = await User.findOne({ username });
+
+    if (!adminExists || adminExists.role !== "admin") {
+      throw createError.NotFound(
+        `User ${username} is not registered or not an admin`
+      );
+    }
+    console.log(adminExists);
+    const admin = {
+      userId: adminExists.userId,
+      username: adminExists.username,
+      role: adminExists.role,
+    };
+
+    const accessToken = await signAccessToken(admin);
+    const refreshToken = await signRefreshAccessToken(admin);
+
+    console.log("Checkpost3===>>>>>");
+
+    res.json({ accessToken, refreshToken });
   } catch (error) {
     console.log(error);
-    return next(new HttpError("Could not fetch user from DB", 500));
+    next(error);
   }
-  if (!adminExists || adminExists.role !== "admin") {
-    return next(
-      new HttpError(`Could not find admin or ${username} is not a admin`, 422)
-    );
-  }
-
-  let token;
-  try {
-    token = jwt.sign(
-      {
-        user: {
-          userId: adminExists.userId,
-          username: adminExists.username,
-          role: adminExists.role,
-        },
-      },
-      jwtSecretKey,
-      {
-        expiresIn: "1h",
-      }
-    );
-  } catch (err) {
-    return next(new HttpError("Sign in failed", 500));
-  }
-
-  res.json({ messsage: "Admin logged in successfully", token });
 };

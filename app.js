@@ -1,6 +1,5 @@
 require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 
 const HttpError = require("./models/http-error");
@@ -9,11 +8,10 @@ const authRoutes = require("./routes/auth-routes");
 const instrumentRoutes = require("./routes/instrument-routes");
 const kioskRoutes = require("./routes/kiosk-routes");
 
-const mongodbURI = process.env.MONGODB_URI;
-
 const app = express();
 
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*"); //http://localhost:3000
@@ -46,29 +44,32 @@ app.use((error, req, res, next) => {
   res.json({ message: error.message || "An unknown error occured!" });
 });
 
-mongoose
-  .connect(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then((result) => {
-    console.log("DB Connected!");
-    const server = app.listen(5000);
+// Connect to the database
+require("./helpers/init_mongodb");
 
-    const io = require("./util/socket").init(server);
+// Connect to the redis server
+require("./helpers/init_redis");
 
-    io.on("connect", (socket) => {
-      // const clientIp = socket.request.connection.remoteAddress.split(":")[2];
-      console.log("Client Connected=> ip: ", socket.id);
+const PORT = process.env.PORT || 5000;
+const server = app.listen(PORT, () => {
+  console.log("====================================");
+  console.log("Kiosk Server started on port 5000..");
+  console.log("====================================");
+});
 
-      socket.on("joinAuthRoom", (room) => {
-        socket.join(room);
-        console.log("Joined room: ", room);
-        console.log("Rooms: ", socket.adapter.rooms);
-      });
+const io = require("./util/socket").init(server);
 
-      socket.on("disconnect", () => {
-        console.log("Client Disconnected ", socket.id);
-      });
-    });
-  })
-  .catch((err) => {
-    console.log(err);
+io.on("connect", (socket) => {
+  // const clientIp = socket.request.connection.remoteAddress.split(":")[2];
+  console.log("Client Connected=> ", socket.id);
+
+  socket.on("joinAuthRoom", (room) => {
+    socket.join(room);
+    console.log("Joined room: ", room);
+    console.log("Rooms: ", socket.adapter.rooms);
   });
+
+  socket.on("disconnect", () => {
+    console.log("Client Disconnected ", socket.id);
+  });
+});
