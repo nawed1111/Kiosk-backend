@@ -12,7 +12,7 @@ exports.getKioskById = async (req, res, next) => {
   }
 
   if (!kiosk) {
-    return next(new HttpError("Kiosk not found!", 500));
+    return next(new HttpError("Kiosk not found!", 404));
   }
 
   res.json({ message: "Fetched kiosk successfully" });

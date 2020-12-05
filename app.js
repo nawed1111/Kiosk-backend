@@ -36,12 +36,14 @@ app.use((req, res, next) => {
   throw error;
 });
 
-app.use((error, req, res, next) => {
-  if (res.headerSent) {
-    return next(error);
-  }
-  res.status(error.code || 500);
-  res.json({ message: error.message || "An unknown error occured!" });
+app.use((err, req, res, next) => {
+  res.status(err.status || 500);
+  res.send({
+    error: {
+      status: err.status || 500,
+      message: err.message,
+    },
+  });
 });
 
 // Connect to the database
@@ -66,7 +68,6 @@ io.on("connect", (socket) => {
   socket.on("joinAuthRoom", (room) => {
     socket.join(room);
     console.log("Joined room: ", room);
-    console.log("Rooms: ", socket.adapter.rooms);
   });
 
   socket.on("disconnect", () => {

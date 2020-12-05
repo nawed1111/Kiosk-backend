@@ -3,25 +3,21 @@ const { check } = require("express-validator");
 
 const authController = require("../controllers/auth-controller");
 const checkAuth = require("../middleware/check-auth");
+const getLimsToken = require("../middleware/get-LIMS-token");
 const roleRequired = require("../middleware/required-role");
 
 const router = express.Router();
 
-router.get("/:uid/:kid", authController.getUserByIdFromLIMS);
-router.post("/verify-pin", authController.verifyUserPinFromKioskDB);
-router.post("/login", authController.loginFromLIMS);
+/***************Standard users*****************/
+
+router.get("/:uid/:kid", getLimsToken, authController.getUserByIdFromLIMS);
+router.post(
+  "/verify-pin",
+  getLimsToken,
+  authController.verifyUserPinFromKioskDB
+);
 router.post("/refresh-token", authController.refreshToken);
 router.delete("/logout", authController.logout);
-
-router.post("/admin/login", authController.adminLogin);
-
-router.use(checkAuth);
-
-router.put(
-  "/create-user/:uid",
-  [check("role").notEmpty()],
-  authController.createUserInKioskDB
-);
 
 router.patch(
   "/update-user/:uid",
@@ -29,9 +25,26 @@ router.patch(
     check("pin").notEmpty().isLength({ min: 4 }).isNumeric(),
     check("confirmPin").notEmpty().isLength({ min: 4 }).isNumeric(),
   ],
+  getLimsToken,
   authController.updateUserInKioskDB
 );
 
-router.get("/users", roleRequired("admin"), authController.getUsersFromKioskDB);
+/***************Admin*****************/
+
+router.post("/admin/login", authController.adminLogin);
+
+router.use(checkAuth);
+
+router.get("/admin/:userid", authController.getOneAdmin);
+
+router.post("/admin/:userid", authController.createAdminInKioskDB);
+
+router.patch("/admin/:userid", authController.updateAdmin);
+
+router.get(
+  "/admin-list",
+  roleRequired("admin"),
+  authController.getAdminListFromKioskDB
+);
 
 module.exports = router;

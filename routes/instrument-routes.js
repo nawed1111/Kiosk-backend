@@ -18,6 +18,6 @@ router.get(
 //   getLIMSToken,
 //   instrumentController.getSelectedPropertiesOfInstrumentFromLIMS
 // );
-router.get("/:kid", instrumentController.getInstruments);
+router.get("/:kid", getLIMSToken, instrumentController.getInstruments);
 
 module.exports = router;

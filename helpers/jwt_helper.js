@@ -11,7 +11,7 @@ module.exports = {
       const options = {
         expiresIn: `${process.env.JWT_ACCESS_TOKEN_LIFE}s`,
         issuer: process.env.JWT_ISSUER,
-        audience: user.userId,
+        audience: user.userid,
       };
       jwt.sign(
         payload,
@@ -43,7 +43,7 @@ module.exports = {
             err.name === "JsonWebTokenError" ? "Unauthorized" : err.message;
           return reject(createError.Unauthorized(message));
         }
-        return resolve(payload.aud);
+        return resolve(payload.user);
       });
     });
   },
@@ -57,7 +57,7 @@ module.exports = {
       const options = {
         expiresIn: `${process.env.JWT_REFRESH_TOKEN_LIFE}s`,
         issuer: process.env.JWT_ISSUER,
-        audience: user.userId,
+        audience: user.userid,
       };
       jwt.sign(
         payload,
@@ -69,7 +69,7 @@ module.exports = {
             return reject(createError.InternalServerError());
           }
           redisClient.SET(
-            user.userId,
+            user.userid,
             token,
             "EX",
             process.env.JWT_REFRESH_TOKEN_LIFE,
@@ -122,7 +122,7 @@ module.exports = {
       module.exports
         .verifyRefreshAccessToken(req)
         .then((user) => {
-          redisClient.DEL(user.userId, (err, value) => {
+          redisClient.DEL(user.userid, (err, value) => {
             if (err) {
               console.log(err.message);
               return reject(createError.InternalServerError());

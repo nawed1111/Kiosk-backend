@@ -1,7 +1,6 @@
 const HttpError = require("../models/http-error");
 const axios = require("axios");
 
-const { DUMMY_INSTRUMENTS } = require("../models/instrument-model-LIMS");
 const Kiosk = require("../models/kioskModel");
 
 exports.getInstruments = async (req, res, next) => {
@@ -17,10 +16,40 @@ exports.getInstruments = async (req, res, next) => {
   if (!kiosk) {
     return next(new HttpError("Kiosk does not exist", 404));
   }
+  /**************API call to LIMS****************/
+  if (!process.env.LIMS_ACCESS_TOKEN)
+    return next(new HttpError("No token", 500));
+  let instrumentsWithStatus = [];
+  await Promise.all(
+    kiosk.instruments.map(async (ins) => {
+      try {
+        const response = await axios.get(
+          `http://localhost:3030/lims/api/instruments/${ins.instrumentid}`,
+          {
+            headers: {
+              Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+            },
+          }
+        );
+        // console.log(response.data);
 
+        instrumentsWithStatus.push({
+          instrumentid: ins.instrumentid,
+          name: ins.name,
+          status: response.data.status,
+        });
+      } catch (error) {
+        next(error);
+      }
+    })
+  ).catch((err) => {
+    next(err);
+    console.log(err);
+  });
+  /**************API call to LIMS****************/
   res.json({
     message: "Fetched Instruments Successfully",
-    instruments: kiosk.instruments,
+    instruments: instrumentsWithStatus,
     testsRunning: kiosk.samplesInTest.map((test) =>
       test.toObject({ getters: true })
     ),
@@ -30,8 +59,8 @@ exports.getInstruments = async (req, res, next) => {
 exports.getInstrumentFromLIMS = async (req, res, next) => {
   const instrumentId = req.params.iid;
 
-  console.log("Token: ", process.env.LIMS_ACCESS_TOKEN);
-  if (!process.env.LIMS_ACCESS_TOKEN) return next(HttpError("No token", 500));
+  if (!process.env.LIMS_ACCESS_TOKEN)
+    return next(new HttpError("No token", 500));
   try {
     const response = await axios.get(
       `http://localhost:3030/lims/api/instruments/${instrumentId}`,
@@ -41,6 +70,7 @@ exports.getInstrumentFromLIMS = async (req, res, next) => {
         },
       }
     );
+    console.log(response.data);
     res.json({
       message: "Instrument detail fetched Successfully",
       instrument: response.data,

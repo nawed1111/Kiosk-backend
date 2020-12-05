@@ -15,15 +15,17 @@ exports.getSampleByIdFromLims = async (req, res, next) => {
 
   /**************API call to LIMS****************/
   try {
-    const response = await axios(
+    const response = await axios.get(
       `http://localhost:3030/lims/api/samples/${sampleId}`,
       {
-        method: "GET",
         headers: {
           Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
         },
       }
     );
+
+    if (response.status !== 200)
+      return next(new HttpError("Could not find sample", response.status));
 
     const sample = response.data;
     /**************API call to LIMS****************/
@@ -57,7 +59,7 @@ exports.getRunningTestById = async (req, res, next) => {
 
 exports.runSampleTest = async (req, res, next) => {
   const { instrumentId, samples, kioskId, duration, timestamp } = req.body;
-
+  console.log(kioskId);
   let kiosk;
 
   try {
@@ -80,7 +82,7 @@ exports.runSampleTest = async (req, res, next) => {
     samples: filterSamples,
     duration,
     doneOn: new Date(+timestamp),
-    doneBy: req.user.username,
+    doneBy: req.user.name,
     timestamp,
   });
 
@@ -121,16 +123,16 @@ exports.runSampleTest = async (req, res, next) => {
   }
 
   const date = new Date(+timestamp + duration * 60 * 1000);
+
   try {
     schedule.scheduleJob(date, function () {
       // Message for notification on completion
       // const notificationMessage = `Hi ${req.user.fname}, Test completed in ${instrumentId}.
       // Please remove sample/s from the instrument`;
-      // sendSMS(`${req.user.countrycode} ${req.user.mobno}`, notificationMessage);
-      console.log("Message sent");
+      // sendSMS(`${req.user.countrycode}${req.user.mobno}`, notificationMessage);
     });
   } catch (error) {
-    console.log(error);
+    next(error);
   }
   res.status(201).json({ test: testedSample });
 };
