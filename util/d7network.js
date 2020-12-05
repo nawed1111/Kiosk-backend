@@ -1,26 +1,30 @@
 require("dotenv").config();
-const request = require("request");
+const axios = require("axios");
 
 const authToken = process.env.AUTH_TOKEN_D7;
 
-const sendSMS = async (phone, message) => {
-  var options = {
+const sendSMS = (phone, message) => {
+  const options = {
     method: "POST",
     url: "https://rest-api.d7networks.com/secure/send",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: authToken,
     },
-    body: JSON.stringify({
+    data: {
       to: phone,
       content: message,
       from: "SMSINFO",
-    }),
+    },
   };
-  request(options, function (error, response) {
-    if (error) throw new Error(error);
-    console.log("SMS sent");
-  });
+  axios(options)
+    .then((res) => {
+      console.log("SMS Sent to", phone);
+    })
+    .catch((err) => {
+      console.log(err);
+      next(err);
+    });
 };
 
 module.exports = sendSMS;

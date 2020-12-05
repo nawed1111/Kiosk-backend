@@ -1,5 +1,6 @@
 const express = require("express");
 const checkAuth = require("../middleware/check-auth");
+const getLIMSToken = require("../middleware/get-LIMS-token");
 
 const instrumentController = require("../controllers/instrument-controller");
 
@@ -7,11 +8,16 @@ const router = express.Router();
 
 router.use(checkAuth);
 
-router.get("/instrument/:iid", instrumentController.getInstrumentFromLIMS);
-router.post(
+router.get(
   "/instrument/:iid",
-  instrumentController.getSelectedPropertiesOfInstrumentFromLIMS
+  getLIMSToken,
+  instrumentController.getInstrumentFromLIMS
 );
-router.get("/:kid", instrumentController.getInstruments);
+// router.post(
+//   "/instrument/:iid",
+//   getLIMSToken,
+//   instrumentController.getSelectedPropertiesOfInstrumentFromLIMS
+// );
+router.get("/:kid", getLIMSToken, instrumentController.getInstruments);
 
 module.exports = router;

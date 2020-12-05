@@ -1,56 +1,101 @@
-require("dotenv").config();
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 const { validationResult } = require("express-validator");
+const createError = require("http-errors");
+const {
+  signAccessToken,
+  signRefreshAccessToken,
+  verifyRefreshAccessToken,
+  deleteRefreshToken,
+} = require("../helpers/jwt_helper");
 
-const jwt = require("jsonwebtoken");
+const {
+  adminSchema,
+  loginSchema,
+} = require("../helpers/schema-validation/adminSchemaValidation");
+
 const HttpError = require("../models/http-error");
-const { DUMMY_USERS } = require("../models/users-model-LIMS");
-const User = require("../models/userModel");
 
-const jwtSecretKey = process.env.JWT_SECRET_USERS;
-// const jwtSecretKeyForAdmin = process.env.JWT_SECRET_ADMIN;
+const User = require("../models/userModel");
+const Admin = require("../models/adminModel");
 
 const io = require("../util/socket");
 
 exports.getUserByIdFromLIMS = async (req, res, next) => {
-  const userId = req.params.uid;
-  const kioskId = req.params.kid; //kiosk id
-  const user = DUMMY_USERS.find((u) => u.id === userId); //Async code
-  if (!user) {
-    return next(new HttpError("User not found!", 404));
-  }
+  const userid = req.params.uid;
+  const kioskId = req.params.kid;
 
   let existingUser;
-
   try {
-    existingUser = await User.findOne({ userId });
+    existingUser = await User.findOne({ userid });
   } catch (error) {
     console.log(error);
     return next(new HttpError("Fetching user failed", 500));
   }
-
-  if (existingUser && !existingUser.firstTimeLogin) {
-    console.log("Display");
-    io.getIO()
-      .in(kioskId)
-      .emit("jwttoken", { userId: user.id, displayPin: true });
+  if (existingUser) {
+    if (!existingUser.firstTimeLogin) {
+      io.getIO().in(kioskId).emit("jwttoken", { userid, displayPin: true });
+    } else {
+      io.getIO().in(kioskId).emit("jwttoken", { userid, setupPin: true });
+    }
+    res.json({ message: "Existing user" });
   } else {
-    io.getIO()
-      .in(kioskId)
-      .emit("jwttoken", { userId: user.id, setupPin: true });
-  }
+    try {
+      /**************API call to LIMS****************/
 
-  res.json({
-    message: "User fetched successfully",
-    userId: user.id,
-  });
+      const response = await axios.get(
+        `http://localhost:3030/lims/api/users/${userid}`,
+        {
+          headers: {
+            Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          },
+        }
+      );
+
+      if (response.status !== 200)
+        return next(new HttpError("Could not find user", response.status));
+      /**************API call to LIMS*****************/
+
+      const user = response.data;
+
+      if (!user) {
+        return next(new HttpError("User not found!", response.status));
+      }
+
+      const newUser = new User({
+        userid,
+        name: `${user.fname} ${user.lname}`,
+        firstTimeLogin: true,
+        locked: false,
+        updated: new Date(),
+        createdBy: userid,
+      });
+
+      try {
+        await newUser.save();
+      } catch (error) {
+        console.log(error);
+        return next(new HttpError("Something went wrong!", 500));
+      }
+
+      io.getIO().in(kioskId).emit("jwttoken", { userid, setupPin: true });
+
+      res.json({
+        message: "User fetched successfully",
+        userId: user.userid,
+      });
+    } catch (error) {
+      return next(new HttpError("Could not find user", 404));
+    }
+  }
 };
 
+/*
 exports.loginFromLIMS = async (req, res, next) => {
   const { username, password } = req.body;
-  /*
-  Check for user in LIMS database. API call to LIMS DB. 
-  */
+  
+  //Check for user in LIMS database. API call to LIMS DB. 
+  
   const user = DUMMY_USERS.find((u) => u.username === username);
   if (!user) {
     return next(new HttpError("User not found!", 404));
@@ -117,199 +162,196 @@ exports.loginFromLIMS = async (req, res, next) => {
   }
 };
 
-exports.getUsersFromKioskDB = async (req, res, next) => {
-  let users;
-  try {
-    users = await User.find().lean().select("-id, -v");
-  } catch (error) {
-    console.log(error);
-    return next(new HttpError("Could not fetch users", 500));
-  }
-
-  res.status(200).json({ message: "Fetched users sucessfully", users });
-};
+*/
 
 exports.verifyUserPinFromKioskDB = async (req, res, next) => {
-  const { userId, pin } = req.body;
-  let user;
+  const { userid, pin } = req.body;
+
   try {
-    user = await User.findOne({ userId });
-    if (!user) {
-      return next(new HttpError("User not found!", 404));
+    const existingUser = await User.findOne({ userid });
+    if (!existingUser) {
+      throw createError.NotFound(`User ${userid} is not registered`);
     }
-    const isEqual = await bcrypt.compare(pin, user.pin);
+
+    const isEqual = await bcrypt.compare(pin, existingUser.pin);
     if (!isEqual) {
-      return next(new HttpError("Incorrect pin!", 422));
+      throw createError.Unauthorized("Username/Password not valid");
     }
   } catch (error) {
-    console.log(error);
-    return next(new HttpError("Something went wrong", 500));
+    return next(error);
   }
 
-  /**************API call to LIMS****************/
+  /**************API call to LIMS*************
+   * for user details
+   * ***/
 
-  const userDetails = DUMMY_USERS.find((u) => u.id === userId); //Async code
-  if (!userDetails) {
-    return next(new HttpError("User not found!", 404));
-  }
-
-  /**************API call to LIMS****************/
-
-  let token;
   try {
-    token = jwt.sign(
+    const response = await axios.get(
+      `http://localhost:3030/lims/api/users/${userid}`,
       {
-        user: {
-          userId,
-          email: userDetails.email,
-          contact: userDetails.contact,
-          username: userDetails.username,
-          role: user.role,
+        headers: {
+          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
         },
-      },
-      jwtSecretKey,
-      { expiresIn: "1h" }
+      }
     );
-  } catch (err) {
-    return next(new HttpError("Token could not be generated", 500));
-  }
-  res.json({
-    message: "Signed in successfully",
-    token: token,
-  });
-};
 
-exports.createUserInKioskDB = async (req, res, next) => {
-  const userId = req.params.uid;
-  const { role, locked } = req.body;
+    if (response.status !== 200)
+      return next(new HttpError("Could not find user", response.status));
 
-  const errors = validationResult(req);
-  if (!errors.isEmpty() || pin !== confirmPin) {
-    console.log(errors);
-    return next(new HttpError("Invalid inputs passed!", 422));
-  }
+    const userDetails = response.data;
 
-  let existingUser;
+    user = {
+      userid,
+      email: userDetails.email,
+      contact: `${userDetails.countrycode} ${userDetails.mobno}`,
+      name: `${userDetails.fname} ${userDetails.lname}`,
+      role: "standard-user",
+    };
+    /**************API call to LIMS****************/
 
-  try {
-    existingUser = await User.findOne({ userId });
+    const accessToken = await signAccessToken(user);
+
+    const refreshToken = await signRefreshAccessToken(user);
+
+    res.status(200).json({ accessToken, refreshToken });
   } catch (error) {
     console.log(error);
-    return next(new HttpError("Fetching user failed", 500));
+    next(error);
   }
-
-  if (existingUser) {
-    return next(new HttpError("User already exists! please login", 500));
-  }
-
-  /*
-  if (existingUser && existingUser.firstTimeLogin) {
-    existingUser.pin = hashedPin;
-    existingUser.firstTimeLogin = false;
-    try {
-      await existingUser.save();
-      return res.json({ message: "User updated successfully in kiosk DB" });
-    } catch (error) {
-      return next(new HttpError("pin could not be saved", 500));
-    }
-  }
-  */
-
-  const newUser = new User({
-    userId,
-    firstTimeLogin: true,
-    role: role,
-    locked: locked,
-    updated: new Date(),
-    createdBy: req.user.username,
-  });
-
-  try {
-    await newUser.save();
-  } catch (error) {
-    console.log(error);
-    return next(new HttpError("Something went wrong!", 500));
-  }
-
-  res.json({ message: "User created successfully" });
 };
 
 exports.updateUserInKioskDB = async (req, res, next) => {
-  const userId = req.params.uid;
+  const userid = req.params.uid;
   const { pin, confirmPin } = req.body;
-
   const errors = validationResult(req);
   if (!errors.isEmpty() || pin !== confirmPin) {
     console.log(errors);
     return next(new HttpError("Invalid inputs passed!", 422));
   }
 
-  let existingUser;
-
   try {
-    existingUser = await User.findOne({ userId });
+    const user = await User.findOne({ userid });
+
+    if (!user) {
+      return next(new HttpError("User does not exist!", 500));
+    }
+
+    const hashedPin = await bcrypt.hash(pin, 12);
+
+    console.log("First time ", user.firstTimeLogin);
+    if (user.firstTimeLogin) {
+      user.pin = hashedPin;
+      user.firstTimeLogin = false;
+
+      await user.save();
+
+      return res.json({ message: "User updated successfully in kiosk DB" });
+    }
+    res.json({ message: "pin has already been set up" });
   } catch (error) {
     console.log(error);
     return next(new HttpError("Fetching user failed", 500));
   }
+};
 
-  if (!existingUser) {
-    return next(new HttpError("User does not exist!", 500));
-  }
-
-  let hashedPin;
+exports.refreshToken = async (req, res, next) => {
   try {
-    hashedPin = await bcrypt.hash(pin, 12);
-  } catch (error) {
-    return next(new HttpError("Pin hashing failed", 500));
-  }
+    const user = await verifyRefreshAccessToken(req);
 
-  if (existingUser && existingUser.firstTimeLogin) {
-    existingUser.pin = hashedPin;
-    existingUser.firstTimeLogin = false;
-    try {
-      await existingUser.save();
-      return res.json({ message: "User updated successfully in kiosk DB" });
-    } catch (error) {
-      return next(new HttpError("pin could not be saved", 500));
-    }
+    const newAccessToken = await signAccessToken(user);
+
+    const newRefreshToken = await signRefreshAccessToken(user);
+
+    res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.logout = async (req, res, next) => {
+  try {
+    const output = await deleteRefreshToken(req);
+    if (output === "success")
+      res.status(204).json({ message: "Refresh Token deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.createAdminInKioskDB = async (req, res, next) => {
+  try {
+
+    const result = await adminSchema.validateAsync(req.body);
+    const adminDoesExists = await Admin.findOne({ userid: result.userid });
+    if (adminDoesExists)
+      throw createError.Conflict(
+        `Account for ${result.userid} already exists.`
+      );
+
+    const newAdmin = await new Admin(result).save();
+
+    res.json({ message: "Created Successfully", newAdmin });
+  } catch (error) {
+    if (error.isJoi) error.status = 422;
+    console.log(error);
+    next(error);
   }
 };
 
 exports.adminLogin = async (req, res, next) => {
-  const { username, password } = req.body;
-
-  let adminExists;
   try {
-    adminExists = await User.findOne({ username });
+    const result = await loginSchema.validateAsync(req.body);
+    const user = await Admin.findOne({ userid: result.userid });
+    if (!user)
+      throw createError.NotFound(`User ${result.userid} is not registered`);
+    const isMatched = await user.isValidPassword(result.password);
+    if (!isMatched)
+      throw createError.Unauthorized("Username/Password not valid");
+
+    const accessToken = await signAccessToken(user);
+    const refreshToken = await signRefreshAccessToken(user);
+
+    res.json({ accessToken, refreshToken });
   } catch (error) {
-    console.log(error);
-    return next(new HttpError("Could not fetch user from DB", 500));
+    if (error.isJoi) next(createError.BadRequest("Invalid Username/Password"));
+    next(error);
   }
-  if (!adminExists || adminExists.role !== "admin") {
-    return next(
-      new HttpError(`Could not find admin or ${username} is not a admin`, 422)
-    );
-  }
+};
 
-  let token;
+exports.getOneAdmin = async (req, res, next) => {
   try {
-    token = jwt.sign(
-      {
-        user: {
-          userId: adminExists.userId,
-          username: adminExists.username,
-          role: adminExists.role,
-        },
-      },
-      jwtSecretKey,
-      {
-        expiresIn: "1h",
-      }
+    const { userid } = req.params;
+    const doesExists = await Admin.findOne({ userid }).select(
+      "-password -_id -__v"
     );
-  } catch (err) {
-    return next(new HttpError("Sign in failed", 500));
+    if (!doesExists) throw createError.NotFound();
+    res.json(doesExists);
+  } catch (error) {
+    console.log(error.message);
+    next(error);
   }
+};
+exports.getAdminListFromKioskDB = async (req, res, next) => {
+  try {
+    const users = await Admin.find().select("-_id -__v");
+    res.json({ users });
+  } catch (error) {
+    error.message = "Internal Server Error";
+    next(error);
+  }
+};
 
-  res.json({ messsage: "Admin logged in successfully", token });
+exports.updateAdmin = async (req, res, next) => {
+  try {
+    const { userid } = req.params;
+    const result = await adminSchema.validateAsync(req.body);
+    const updatedAdmin = await Admin.findOneAndUpdate({ userid }, result, {
+      returnOriginal: false,
+    });
+    if (!updatedAdmin) throw createError.NotFound(`${userid} is invalid user`);
+    res.json({ message: `${userid} has been updated successfully` });
+  } catch (error) {
+    if (error.isJoi) error.status = 422;
+    next(error);
+  }
 };

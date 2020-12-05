@@ -1,18 +1,18 @@
 const mongoose = require("mongoose");
 
 const userSchema = mongoose.Schema({
-  userId: {
+  userid: {
     type: String,
     required: true,
+    unique: true,
   },
-  username: {
+  name: {
     type: String,
     required: true,
   },
   role: {
     type: String,
     default: "standard-user",
-    required: true,
   },
   pin: {
     type: String,

@@ -1,27 +1,41 @@
 const HttpError = require("../models/http-error");
 const schedule = require("node-schedule");
 const io = require("../util/socket");
+const axios = require("axios");
 
 const sendSMS = require("../util/d7network");
 const mongoose = require("mongoose");
 
 const SampleTest = require("../models/sampleTestModel");
 const Kiosk = require("../models/kioskModel");
-const { DUMMY_INSTRUMENTS } = require("../models/instrument-model-LIMS");
 
-const { DUMMY_SAMPLES } = require("../models/sample-model");
-
-exports.getSampleById = (req, res, next) => {
+exports.getSampleByIdFromLims = async (req, res, next) => {
   const kioskId = req.params.kid;
   const sampleId = req.params.sid;
-  const sample = DUMMY_SAMPLES.find((s) => s.id === sampleId); //async code
 
-  if (!sample) {
-    return next(new HttpError("Sample not found", 404));
+  /**************API call to LIMS****************/
+  try {
+    const response = await axios.get(
+      `http://localhost:3030/lims/api/samples/${sampleId}`,
+      {
+        headers: {
+          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+        },
+      }
+    );
+
+    if (response.status !== 200)
+      return next(new HttpError("Could not find sample", response.status));
+
+    const sample = response.data;
+    /**************API call to LIMS****************/
+
+    io.getIO().in(kioskId).emit("scannedSample", sample);
+
+    res.json({ message: "Sample fetched successfully" });
+  } catch (error) {
+    next(error);
   }
-  io.getIO().in(kioskId).emit("scannedSample", sample);
-
-  res.json({ message: "Sample fetched successfully", sample });
 };
 
 /*
@@ -45,7 +59,7 @@ exports.getRunningTestById = async (req, res, next) => {
 
 exports.runSampleTest = async (req, res, next) => {
   const { instrumentId, samples, kioskId, duration, timestamp } = req.body;
-
+  console.log(kioskId);
   let kiosk;
 
   try {
@@ -58,16 +72,20 @@ exports.runSampleTest = async (req, res, next) => {
     return next(new HttpError("Kiosk does not exist", 404));
   }
 
+  const filterSamples = samples.map((sample) => ({
+    sampleid: sample.sampleid,
+  }));
+
   const testedSample = new SampleTest({
     instrumentId,
     kiosk: kiosk._id,
-    samples,
+    samples: filterSamples,
     duration,
     doneOn: new Date(+timestamp),
-    doneBy: req.user.username,
+    doneBy: req.user.name,
     timestamp,
   });
-  // Starting a session to update kiosk and SampleTest tables
+
   if (samples.length === 0) {
     return next(new HttpError("Enter atleast one sample!", 500));
   }
@@ -77,23 +95,26 @@ exports.runSampleTest = async (req, res, next) => {
   try {
     let sess = await mongoose.startSession();
     sess.startTransaction();
-    await testedSample.save({ session: sess });
-
     kiosk.samplesInTest.push(testedSample._id);
 
     /**************API call to LIMS****************/
 
-    const instrument = DUMMY_INSTRUMENTS.find(
-      (instrument) => instrument.id === instrumentId
+    const response = await axios.patch(
+      `http://localhost:3030/lims/api/instruments/${instrumentId}`,
+      {
+        status: "inuse",
+      },
+      {
+        headers: {
+          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          "Content-Type": "application/json",
+        },
+      }
     );
-    if (!instrument) {
-      return next(new HttpError("Could not find instrument", 404));
-    }
-
-    instrument.properties["isFilled"] = true;
-
+    if (response.status !== 200)
+      return next(new HttpError("Could not update instrument", 500));
     /**************API call to LIMS*****************/
-
+    await testedSample.save({ session: sess });
     await kiosk.save({ session: sess });
     sess.commitTransaction();
   } catch (err) {
@@ -102,15 +123,16 @@ exports.runSampleTest = async (req, res, next) => {
   }
 
   const date = new Date(+timestamp + duration * 60 * 1000);
+
   try {
     schedule.scheduleJob(date, function () {
       // Message for notification on completion
-      // const notificationMessage = `Hi ${req.user.username}, Test completed in ${instrumentId}. Please remove sample/s from the instrument`;
-      // sendSMS(req.user.contact, notificationMessage);
-      console.log("Message sent");
+      // const notificationMessage = `Hi ${req.user.fname}, Test completed in ${instrumentId}.
+      // Please remove sample/s from the instrument`;
+      // sendSMS(`${req.user.countrycode}${req.user.mobno}`, notificationMessage);
     });
   } catch (error) {
-    console.log(error);
+    next(error);
   }
   res.status(201).json({ test: testedSample });
 };
@@ -131,42 +153,40 @@ exports.postSampleRemovalFromInstrument = async (req, res, next) => {
 
   const kiosk = sampleTest.kiosk;
 
-  const timeLeft =
-    +sampleTest.timestamp +
-    sampleTest.duration * 60 * 1000 -
-    new Date().getTime();
-  if (timeLeft <= 0) {
-    try {
-      let sess = await mongoose.startSession();
-      sess.startTransaction();
+  const date = new Date(sampleTest.timestamp + sampleTest.duration * 60 * 1000);
 
-      kiosk.samplesInTest.pull(sampleTest._id);
+  const difference = +date - +new Date();
 
-      await kiosk.save({ session: sess });
+  if (difference > 0) return next(new HttpError("Test is still running", 403));
 
-      /**************API call to LIMS****************/
+  try {
+    let sess = await mongoose.startSession();
+    sess.startTransaction();
 
-      const instrument = DUMMY_INSTRUMENTS.find(
-        (instrument) => instrument.id === sampleTest.instrumentId
-      );
-      if (!instrument) {
-        return next(new HttpError("Could not find instrument", 404));
+    kiosk.samplesInTest.pull(sampleTest._id);
+
+    /**************API call to LIMS****************/
+    const response = await axios.patch(
+      `http://localhost:3030/lims/api/instruments/${sampleTest.instrumentId}`,
+      {
+        status: "available",
+      },
+      {
+        headers: {
+          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          "Content-Type": "application/json",
+        },
       }
+    );
 
-      instrument.properties["isFilled"] = false;
-
-      /**************API call to LIMS*****************/
-
-      sess.commitTransaction();
-    } catch (error) {
-      return next(new HttpError("Could not update data", 500));
-    }
-
-    res.json({ message: "Updated successfully", test: sampleTest });
-  } else {
-    res.status(500).json({
-      message: "Test still running! Cannot update",
-      timeRemaining: `${timeLeft / 1000} seconds`,
-    });
+    if (response.status !== 200)
+      return next(new HttpError("Could not update", 500));
+    /**************API call to LIMS*****************/
+    await kiosk.save({ session: sess });
+    sess.commitTransaction();
+  } catch (error) {
+    return next(new HttpError("Could not update data", 500));
   }
+
+  res.json({ message: "Updated successfully", test: sampleTest });
 };

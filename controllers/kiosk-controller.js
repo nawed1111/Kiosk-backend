@@ -12,7 +12,7 @@ exports.getKioskById = async (req, res, next) => {
   }
 
   if (!kiosk) {
-    return next(new HttpError("Kiosk not found!", 500));
+    return next(new HttpError("Kiosk not found!", 404));
   }
 
   res.json({ message: "Fetched kiosk successfully" });
@@ -86,8 +86,10 @@ exports.updateKiosk = async (req, res, next) => {
       new HttpError(`A kiosk with id ${kioskId} does not exist`, 422) //update status code later
     );
   }
+  instruments.forEach((element) => {
+    kiosk.instruments.push(element);
+  });
 
-  kiosk.instruments = instruments;
   kiosk.updated = Date.now();
 
   try {
@@ -101,9 +103,9 @@ exports.updateKiosk = async (req, res, next) => {
 
 exports.deleteKiosk = async (req, res, next) => {
   const kioskId = req.params.kid;
-  let kiosk;
+
   try {
-    kiosk = await Kiosk.deleteOne({ kioskId });
+    const kiosk = await Kiosk.deleteOne({ kioskId });
   } catch (err) {
     return next(new HttpError("Deleting kiosk failed!", 500));
   }
