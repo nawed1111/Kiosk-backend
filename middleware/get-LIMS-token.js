@@ -1,9 +1,14 @@
-// const createError = require("http-errors");
 const axios = require("axios");
 const fetch = require("node-fetch");
 
+const {
+  storeLimsTokeninRedis,
+  getLimsTokenFromRedis,
+  generateLimsToken,
+} = require("../helpers/jwt_helper");
+
 module.exports = async (req, res, next) => {
-  if (process.env.LIMS_ACCESS_TOKEN) return next();
+  const userid = process.env.KIOSK_INTERFACE_ID;
 
   axios.interceptors.response.use(
     (response) => {
@@ -16,7 +21,7 @@ module.exports = async (req, res, next) => {
         return new Promise((resolve, reject) => {
           reject(err);
         });
-      return new Promise((resolve, reject) => {
+      return new Promise(async (resolve, reject) => {
         const originalReq = err.config;
 
         if (
@@ -25,6 +30,15 @@ module.exports = async (req, res, next) => {
           !err.config.__isRetryRequest
         ) {
           originalReq._retry = true;
+
+          let refreshToken;
+          try {
+            refreshToken = await getLimsTokenFromRedis(
+              `Refresh.Token.${userid}`
+            );
+          } catch (err) {
+            console.log(err);
+          }
 
           return fetch(
             "http://localhost:3030/lims/api/auth/refresh-token",
@@ -35,44 +49,32 @@ module.exports = async (req, res, next) => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                refreshToken: process.env.LIMS_REFRESH_TOKEN,
+                refreshToken,
               }),
             }
           )
             .then((res) => res.json())
-            .then((res) => {
-              if (res.accessToken) {
-                process.env.LIMS_ACCESS_TOKEN = res.accessToken;
-                process.env.LIMS_REFRESH_TOKEN = res.refreshToken;
-                originalReq.headers[
-                  "Authorization"
-                ] = `Bearer ${res.accessToken}`;
-                console.log("****Refresh Token generated****");
+            .then(async (res) => {
+              if (res.error && res.error.status === 401) {
+                const token = await generateLimsToken();
+                originalReq.headers["Authorization"] = `Bearer ${token}`;
                 return resolve(axios(originalReq));
-              } else if (res.error.status === 401) {
-                return fetch("http://localhost:3030/lims/api/auth/login", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    userid: process.env.KIOSK_INTERFACE_ID,
-                    password: process.env.KIOSK_INTERFACE_KEY,
-                  }),
-                })
-                  .then((res) => res.json())
-                  .then((res) => {
-                    process.env.LIMS_ACCESS_TOKEN = res.accessToken;
-                    process.env.LIMS_REFRESH_TOKEN = res.refreshToken;
-
-                    console.log("****Refresh Token generated****");
-
-                    originalReq.headers[
-                      "Authorization"
-                    ] = `Bearer ${res.accessToken}`;
-                    return resolve(axios(originalReq));
-                  });
               }
+              await storeLimsTokeninRedis({
+                aud: `Access.Token.${userid}`,
+                token: res.accessToken,
+              });
+
+              await storeLimsTokeninRedis({
+                aud: `Refresh.Token.${userid}`,
+                token: res.refreshToken,
+              });
+
+              originalReq.headers[
+                "Authorization"
+              ] = `Bearer ${res.accessToken}`;
+              console.log("****LIMS Token generated using Refresh Token****");
+              return resolve(axios(originalReq));
             });
         }
 
@@ -80,20 +82,19 @@ module.exports = async (req, res, next) => {
       });
     }
   );
-  try {
-    const response = await axios.post(
-      "http://localhost:3030/lims/api/auth/login",
-      {
-        userid: process.env.KIOSK_INTERFACE_ID,
-        password: process.env.KIOSK_INTERFACE_KEY,
+
+  getLimsTokenFromRedis(`Access.Token.${userid}`)
+    .then(async (token) => {
+      if (token) {
+        req.token = token;
+        return next();
       }
-    );
-    // console.log(response.data);
-    process.env.LIMS_ACCESS_TOKEN = response.data.accessToken;
-    process.env.LIMS_REFRESH_TOKEN = response.data.refreshToken;
-    console.log("****Token generated****");
-    next();
-  } catch (error) {
-    next(error);
-  }
+      token = await generateLimsToken();
+      req.token = token;
+      next();
+    })
+    .catch((err) => {
+      console.log(err);
+      next(err);
+    });
 };

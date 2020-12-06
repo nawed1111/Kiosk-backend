@@ -38,55 +38,54 @@ exports.getUserByIdFromLIMS = async (req, res, next) => {
     } else {
       io.getIO().in(kioskId).emit("jwttoken", { userid, setupPin: true });
     }
-    res.json({ message: "Existing user" });
-  } else {
-    try {
-      /**************API call to LIMS****************/
+    return res.json({ message: "Existing user" });
+  }
+  try {
+    /**************API call to LIMS****************/
 
-      const response = await axios.get(
-        `http://localhost:3030/lims/api/users/${userid}`,
-        {
-          headers: {
-            Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
-          },
-        }
-      );
-
-      if (response.status !== 200)
-        return next(new HttpError("Could not find user", response.status));
-      /**************API call to LIMS*****************/
-
-      const user = response.data;
-
-      if (!user) {
-        return next(new HttpError("User not found!", response.status));
+    const response = await axios.get(
+      `http://localhost:3030/lims/api/users/${userid}`,
+      {
+        headers: {
+          Authorization: "Bearer " + req.token,
+        },
       }
+    );
 
-      const newUser = new User({
-        userid,
-        name: `${user.fname} ${user.lname}`,
-        firstTimeLogin: true,
-        locked: false,
-        updated: new Date(),
-        createdBy: userid,
-      });
+    if (response.status !== 200)
+      return next(new HttpError("Could not find user", response.status));
+    /**************API call to LIMS*****************/
 
-      try {
-        await newUser.save();
-      } catch (error) {
-        console.log(error);
-        return next(new HttpError("Something went wrong!", 500));
-      }
+    const user = response.data;
 
-      io.getIO().in(kioskId).emit("jwttoken", { userid, setupPin: true });
-
-      res.json({
-        message: "User fetched successfully",
-        userId: user.userid,
-      });
-    } catch (error) {
-      return next(new HttpError("Could not find user", 404));
+    if (!user) {
+      return next(new HttpError("User not found!", response.status));
     }
+
+    const newUser = new User({
+      userid,
+      name: `${user.fname} ${user.lname}`,
+      firstTimeLogin: true,
+      locked: false,
+      updated: new Date(),
+      createdBy: userid,
+    });
+
+    try {
+      await newUser.save();
+    } catch (error) {
+      console.log(error);
+      return next(new HttpError("Something went wrong!", 500));
+    }
+
+    io.getIO().in(kioskId).emit("jwttoken", { userid, setupPin: true });
+
+    res.json({
+      message: "User fetched successfully",
+      userId: user.userid,
+    });
+  } catch (error) {
+    return next(new HttpError("Could not find user", 404));
   }
 };
 
@@ -190,7 +189,7 @@ exports.verifyUserPinFromKioskDB = async (req, res, next) => {
       `http://localhost:3030/lims/api/users/${userid}`,
       {
         headers: {
-          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          Authorization: "Bearer " + req.token,
         },
       }
     );
@@ -238,7 +237,6 @@ exports.updateUserInKioskDB = async (req, res, next) => {
 
     const hashedPin = await bcrypt.hash(pin, 12);
 
-    console.log("First time ", user.firstTimeLogin);
     if (user.firstTimeLogin) {
       user.pin = hashedPin;
       user.firstTimeLogin = false;
@@ -280,7 +278,6 @@ exports.logout = async (req, res, next) => {
 
 exports.createAdminInKioskDB = async (req, res, next) => {
   try {
-
     const result = await adminSchema.validateAsync(req.body);
     const adminDoesExists = await Admin.findOne({ userid: result.userid });
     if (adminDoesExists)

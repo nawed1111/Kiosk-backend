@@ -25,7 +25,6 @@ router.patch(
     check("pin").notEmpty().isLength({ min: 4 }).isNumeric(),
     check("confirmPin").notEmpty().isLength({ min: 4 }).isNumeric(),
   ],
-  getLimsToken,
   authController.updateUserInKioskDB
 );
 
