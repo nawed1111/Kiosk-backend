@@ -19,7 +19,7 @@ exports.getSampleByIdFromLims = async (req, res, next) => {
       `http://localhost:3030/lims/api/samples/${sampleId}`,
       {
         headers: {
-          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          Authorization: "Bearer " + req.token,
         },
       }
     );
@@ -106,7 +106,7 @@ exports.runSampleTest = async (req, res, next) => {
       },
       {
         headers: {
-          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          Authorization: "Bearer " + req.token,
           "Content-Type": "application/json",
         },
       }
@@ -173,7 +173,7 @@ exports.postSampleRemovalFromInstrument = async (req, res, next) => {
       },
       {
         headers: {
-          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          Authorization: "Bearer " + req.token,
           "Content-Type": "application/json",
         },
       }

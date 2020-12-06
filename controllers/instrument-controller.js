@@ -17,8 +17,6 @@ exports.getInstruments = async (req, res, next) => {
     return next(new HttpError("Kiosk does not exist", 404));
   }
   /**************API call to LIMS****************/
-  if (!process.env.LIMS_ACCESS_TOKEN)
-    return next(new HttpError("No token", 500));
   let instrumentsWithStatus = [];
   await Promise.all(
     kiosk.instruments.map(async (ins) => {
@@ -27,7 +25,7 @@ exports.getInstruments = async (req, res, next) => {
           `http://localhost:3030/lims/api/instruments/${ins.instrumentid}`,
           {
             headers: {
-              Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+              Authorization: "Bearer " + req.token,
             },
           }
         );
@@ -66,7 +64,7 @@ exports.getInstrumentFromLIMS = async (req, res, next) => {
       `http://localhost:3030/lims/api/instruments/${instrumentId}`,
       {
         headers: {
-          Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,
+          Authorization: "Bearer " + req.token,
         },
       }
     );
