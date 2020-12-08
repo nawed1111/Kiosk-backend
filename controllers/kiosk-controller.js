@@ -74,7 +74,8 @@ exports.createKiosk = async (req, res, next) => {
 };
 
 exports.updateKiosk = async (req, res, next) => {
-  const { kioskId, instruments } = req.body;
+  const kioskId = req.params.kid;
+  const { instruments } = req.body;
   let kiosk;
   try {
     kiosk = await Kiosk.findOne({ kioskId });

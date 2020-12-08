@@ -41,7 +41,7 @@ module.exports = async (req, res, next) => {
           }
 
           return fetch(
-            "http://localhost:3030/lims/api/auth/refresh-token",
+            `${process.env.LIMS_API_BASEURL}/lims/api/auth/refresh-token`,
 
             {
               method: "POST",

@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 
+const swaggerRoute = require("./routes/swagger.route");
 const HttpError = require("./models/http-error");
 const testRoutes = require("./routes/test-routes");
 const authRoutes = require("./routes/auth-routes");
@@ -30,6 +31,7 @@ app.use("/api/kiosks", kioskRoutes);
 app.use("/api/instruments", instrumentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/test", testRoutes);
+app.use("/api/docs", swaggerRoute);
 
 app.use((req, res, next) => {
   const error = new HttpError("Could not found this  route", 404);

@@ -16,7 +16,7 @@ exports.getSampleByIdFromLims = async (req, res, next) => {
   /**************API call to LIMS****************/
   try {
     const response = await axios.get(
-      `http://localhost:3030/lims/api/samples/${sampleId}`,
+      `${process.env.LIMS_API_BASEURL}/lims/api/samples/${sampleId}`,
       {
         headers: {
           Authorization: "Bearer " + req.token,
@@ -100,7 +100,7 @@ exports.runSampleTest = async (req, res, next) => {
     /**************API call to LIMS****************/
 
     const response = await axios.patch(
-      `http://localhost:3030/lims/api/instruments/${instrumentId}`,
+      `${process.env.LIMS_API_BASEURL}/lims/api/instruments/${instrumentId}`,
       {
         status: "inuse",
       },
@@ -167,7 +167,7 @@ exports.postSampleRemovalFromInstrument = async (req, res, next) => {
 
     /**************API call to LIMS****************/
     const response = await axios.patch(
-      `http://localhost:3030/lims/api/instruments/${sampleTest.instrumentId}`,
+      `${process.env.LIMS_API_BASEURL}/lims/api/instruments/${sampleTest.instrumentId}`,
       {
         status: "available",
       },

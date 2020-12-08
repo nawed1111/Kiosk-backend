@@ -44,7 +44,7 @@ exports.getUserByIdFromLIMS = async (req, res, next) => {
     /**************API call to LIMS****************/
 
     const response = await axios.get(
-      `http://localhost:3030/lims/api/users/${userid}`,
+      `${process.env.LIMS_API_BASEURL}/lims/api/users/${userid}`,
       {
         headers: {
           Authorization: "Bearer " + req.token,
@@ -186,7 +186,7 @@ exports.verifyUserPinFromKioskDB = async (req, res, next) => {
 
   try {
     const response = await axios.get(
-      `http://localhost:3030/lims/api/users/${userid}`,
+      `${process.env.LIMS_API_BASEURL}/lims/api/users/${userid}`,
       {
         headers: {
           Authorization: "Bearer " + req.token,

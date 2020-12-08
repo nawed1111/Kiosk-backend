@@ -22,7 +22,7 @@ exports.getInstruments = async (req, res, next) => {
     kiosk.instruments.map(async (ins) => {
       try {
         const response = await axios.get(
-          `http://localhost:3030/lims/api/instruments/${ins.instrumentid}`,
+          `${process.env.LIMS_API_BASEURL}/lims/api/instruments/${ins.instrumentid}`,
           {
             headers: {
               Authorization: "Bearer " + req.token,
@@ -61,7 +61,7 @@ exports.getInstrumentFromLIMS = async (req, res, next) => {
     return next(new HttpError("No token", 500));
   try {
     const response = await axios.get(
-      `http://localhost:3030/lims/api/instruments/${instrumentId}`,
+      `${process.env.LIMS_API_BASEURL}/lims/api/instruments/${instrumentId}`,
       {
         headers: {
           Authorization: "Bearer " + req.token,
@@ -86,7 +86,7 @@ exports.getSelectedPropertiesOfInstrumentFromLIMS = async (req, res, next) => {
   if (!process.env.LIMS_ACCESS_TOKEN) return next(HttpError("No token", 500));
   try {
     const response = await axios.get(
-      `http://localhost:3030/lims/api/instruments/${instrumentId}`,
+      `${process.env.LIMS_API_BASEURL}/lims/api/instruments/${instrumentId}`,
       {
         headers: {
           Authorization: "Bearer " + process.env.LIMS_ACCESS_TOKEN,

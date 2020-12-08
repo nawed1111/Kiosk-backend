@@ -145,7 +145,7 @@ module.exports = {
     const password = process.env.KIOSK_INTERFACE_KEY;
 
     return new Promise((resolve, reject) => {
-      fetch("http://localhost:3030/lims/api/auth/login", {
+      fetch(`${process.env.LIMS_API_BASEURL}/lims/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
