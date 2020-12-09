@@ -143,8 +143,8 @@ router.delete("/logout", authController.logout);
 router.patch(
   "/update-user/:uid",
   [
-    check("pin").notEmpty().isLength({ min: 4 }).isNumeric(),
-    check("confirmPin").notEmpty().isLength({ min: 4 }).isNumeric(),
+    check("pin").notEmpty().isLength(4),
+    check("confirmPin").notEmpty().isLength(4),
   ],
   authController.updateUserInKioskDB
 );

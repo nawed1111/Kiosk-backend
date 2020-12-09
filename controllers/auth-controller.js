@@ -174,7 +174,7 @@ exports.verifyUserPinFromKioskDB = async (req, res, next) => {
 
     const isEqual = await bcrypt.compare(pin, existingUser.pin);
     if (!isEqual) {
-      throw createError.Unauthorized("Username/Password not valid");
+      throw createError.Unauthorized("Inavalid Pin");
     }
   } catch (error) {
     return next(error);
@@ -243,7 +243,11 @@ exports.updateUserInKioskDB = async (req, res, next) => {
 
       await user.save();
 
-      return res.json({ message: "User updated successfully in kiosk DB" });
+      const accessToken = await signAccessToken(user);
+
+      const refreshToken = await signRefreshAccessToken(user);
+
+      return res.status(200).json({ accessToken, refreshToken });
     }
     res.json({ message: "pin has already been set up" });
   } catch (error) {
