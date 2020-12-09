@@ -2,6 +2,7 @@ const HttpError = require("../models/http-error");
 const schedule = require("node-schedule");
 const io = require("../util/socket");
 const axios = require("axios");
+const createError = require("http-errors");
 
 const sendSMS = require("../util/d7network");
 const mongoose = require("mongoose");
@@ -157,7 +158,7 @@ exports.postSampleRemovalFromInstrument = async (req, res, next) => {
 
   const difference = +date - +new Date();
 
-  if (difference > 0) return next(new HttpError("Test is still running", 403));
+  if (difference > 0) return next(createError.Forbidden("Test running!"));
 
   try {
     let sess = await mongoose.startSession();
