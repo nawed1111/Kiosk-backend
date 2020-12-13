@@ -37,7 +37,7 @@ module.exports = async (req, res, next) => {
               `Refresh.Token.${userid}`
             );
           } catch (err) {
-            console.log(err);
+            console.log(err.message);
           }
 
           return fetch(
@@ -60,15 +60,19 @@ module.exports = async (req, res, next) => {
                 originalReq.headers["Authorization"] = `Bearer ${token}`;
                 return resolve(axios(originalReq));
               }
-              await storeLimsTokeninRedis({
-                aud: `Access.Token.${userid}`,
-                token: res.accessToken,
-              });
+              try {
+                await storeLimsTokeninRedis({
+                  aud: `Access.Token.${userid}`,
+                  token: res.accessToken,
+                });
 
-              await storeLimsTokeninRedis({
-                aud: `Refresh.Token.${userid}`,
-                token: res.refreshToken,
-              });
+                await storeLimsTokeninRedis({
+                  aud: `Refresh.Token.${userid}`,
+                  token: res.refreshToken,
+                });
+              } catch (error) {
+                console.log(error.message);
+              }
 
               originalReq.headers[
                 "Authorization"
@@ -78,7 +82,7 @@ module.exports = async (req, res, next) => {
             });
         }
 
-        return Promise.reject(err);
+        return reject(err);
       });
     }
   );

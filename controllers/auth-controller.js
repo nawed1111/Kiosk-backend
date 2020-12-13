@@ -14,8 +14,6 @@ const {
   loginSchema,
 } = require("../helpers/schema-validation/adminSchemaValidation");
 
-const HttpError = require("../models/http-error");
-
 const User = require("../models/userModel");
 const Admin = require("../models/adminModel");
 
@@ -30,7 +28,7 @@ exports.getUserByIdFromLIMS = async (req, res, next) => {
     existingUser = await User.findOne({ userid });
   } catch (error) {
     console.log(error);
-    return next(new HttpError("Fetching user failed", 500));
+    return next(createError.NotImplemented());
   }
   if (existingUser) {
     if (!existingUser.firstTimeLogin) {
@@ -38,7 +36,7 @@ exports.getUserByIdFromLIMS = async (req, res, next) => {
     } else {
       io.getIO().in(kioskId).emit("jwttoken", { userid, setupPin: true });
     }
-    return res.json({ message: "Existing user" });
+    return res.json({ message: "existing user" });
   }
   try {
     /**************API call to LIMS****************/
@@ -52,14 +50,12 @@ exports.getUserByIdFromLIMS = async (req, res, next) => {
       }
     );
 
-    if (response.status !== 200)
-      return next(new HttpError("Could not find user", response.status));
     /**************API call to LIMS*****************/
 
     const user = response.data;
 
     if (!user) {
-      return next(new HttpError("User not found!", response.status));
+      throw createError.NotFound(`User ${userid} not found`);
     }
 
     const newUser = new User({
@@ -71,12 +67,7 @@ exports.getUserByIdFromLIMS = async (req, res, next) => {
       createdBy: userid,
     });
 
-    try {
-      await newUser.save();
-    } catch (error) {
-      console.log(error);
-      return next(new HttpError("Something went wrong!", 500));
-    }
+    await newUser.save();
 
     io.getIO().in(kioskId).emit("jwttoken", { userid, setupPin: true });
 
@@ -85,7 +76,9 @@ exports.getUserByIdFromLIMS = async (req, res, next) => {
       userId: user.userid,
     });
   } catch (error) {
-    return next(new HttpError("Could not find user", 404));
+    if (error.response && error.response.data.error.status === 404)
+      io.getIO().in(kioskId).emit("jwttoken", { userid, NotALimsUser: true });
+    next(error);
   }
 };
 
@@ -174,7 +167,7 @@ exports.verifyUserPinFromKioskDB = async (req, res, next) => {
 
     const isEqual = await bcrypt.compare(pin, existingUser.pin);
     if (!isEqual) {
-      throw createError.Unauthorized("Inavalid Pin");
+      throw createError.Forbidden("Inavalid Pin");
     }
   } catch (error) {
     return next(error);
@@ -193,9 +186,6 @@ exports.verifyUserPinFromKioskDB = async (req, res, next) => {
         },
       }
     );
-
-    if (response.status !== 200)
-      return next(new HttpError("Could not find user", response.status));
 
     const userDetails = response.data;
 
@@ -225,14 +215,14 @@ exports.updateUserInKioskDB = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty() || pin !== confirmPin) {
     console.log(errors);
-    return next(new HttpError("Invalid inputs passed!", 422));
+    return next(createError.BadRequest());
   }
 
   try {
     const user = await User.findOne({ userid });
 
     if (!user) {
-      return next(new HttpError("User does not exist!", 500));
+      throw createError.NotFound(`User with id ${userid} does not exist`);
     }
 
     const hashedPin = await bcrypt.hash(pin, 12);
@@ -247,12 +237,12 @@ exports.updateUserInKioskDB = async (req, res, next) => {
 
       const refreshToken = await signRefreshAccessToken(user);
 
-      return res.status(200).json({ accessToken, refreshToken });
+      return res.json({ accessToken, refreshToken });
     }
     res.json({ message: "pin has already been set up" });
   } catch (error) {
     console.log(error);
-    return next(new HttpError("Fetching user failed", 500));
+    next(error);
   }
 };
 
@@ -266,6 +256,7 @@ exports.refreshToken = async (req, res, next) => {
 
     res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
   } catch (error) {
+    console.log(error.message);
     next(error);
   }
 };
@@ -276,6 +267,8 @@ exports.logout = async (req, res, next) => {
     if (output === "success")
       res.status(204).json({ message: "Refresh Token deleted successfully" });
   } catch (error) {
+    console.log(error.message);
+    error.message = "Internal Server Error";
     next(error);
   }
 };
@@ -328,7 +321,7 @@ exports.getOneAdmin = async (req, res, next) => {
     if (!doesExists) throw createError.NotFound();
     res.json(doesExists);
   } catch (error) {
-    console.log(error.message);
+    console.log(error);
     next(error);
   }
 };

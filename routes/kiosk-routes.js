@@ -52,7 +52,7 @@ router.use(checkAuth);
  * @swagger
  *
  * /api/kiosks:
- *   put:
+ *   post:
  *     description: Use to register a new kiosk
  *     produces:
  *       - application/json
@@ -78,7 +78,7 @@ router.use(checkAuth);
  *       401:
  *         description: Unsuccessful authentication
  */
-router.put("/", roleRequired("admin"), kioskController.createKiosk);
+router.post("/", roleRequired("admin"), kioskController.createKiosk);
 
 /**
  * @swagger

@@ -1,4 +1,4 @@
-const HttpError = require("../models/http-error");
+const createError = require("http-errors");
 
 const Kiosk = require("../models/kioskModel");
 
@@ -7,15 +7,16 @@ exports.getKioskById = async (req, res, next) => {
   let kiosk;
   try {
     kiosk = await Kiosk.findOne({ kioskId });
+
+    if (!kiosk) {
+      throw createError.NotFound("Kiosk not found!");
+    }
+
+    res.json({ message: "Fetched kiosk successfully" });
   } catch (err) {
-    return next(new HttpError("Something went wrong", 501));
+    console.log(err.message);
+    next(err);
   }
-
-  if (!kiosk) {
-    return next(new HttpError("Kiosk not found!", 404));
-  }
-
-  res.json({ message: "Fetched kiosk successfully" });
 };
 
 exports.getKiosks = async (req, res, next) => {
@@ -37,9 +38,7 @@ exports.getKiosks = async (req, res, next) => {
       totalKiosks,
     });
   } catch (err) {
-    if (!err.statusCode) {
-      err.statusCode = 500;
-    }
+    console.log(err.message);
     next(err);
   }
 };
@@ -49,28 +48,24 @@ exports.createKiosk = async (req, res, next) => {
   let existingKiosk;
   try {
     existingKiosk = await Kiosk.findOne({ kioskId });
-  } catch (err) {
-    return next(new HttpError("Creating kiosk failed!", 500));
-  }
-  if (existingKiosk) {
-    return next(new HttpError("A kiosk with same id alreday exists "), 500);
-  }
 
-  const createdKiosk = new Kiosk({
-    kioskId,
-    rfreader,
-    instruments,
-    updated: Date.now(),
-  });
+    if (existingKiosk) {
+      throw createError.Conflict(`A kiosk with same id ${kioskId} exists`);
+    }
 
-  try {
+    const createdKiosk = new Kiosk({
+      kioskId,
+      rfreader,
+      instruments,
+      updated: Date.now(),
+    });
     await createdKiosk.save();
-  } catch (err) {
-    console.log(err);
-    return next(new HttpError("Something went wrong!", 500));
-  }
 
-  res.json({ message: "Kiosk created successfully", kiosk: createdKiosk });
+    res.json({ message: "Kiosk created successfully", kiosk: createdKiosk });
+  } catch (err) {
+    console.log(err.message);
+    next(err);
+  }
 };
 
 exports.updateKiosk = async (req, res, next) => {
@@ -79,37 +74,33 @@ exports.updateKiosk = async (req, res, next) => {
   let kiosk;
   try {
     kiosk = await Kiosk.findOne({ kioskId });
-  } catch (err) {
-    return next(new HttpError("updating kiosk failed!", 500));
-  }
-  if (!kiosk) {
-    return next(
-      new HttpError(`A kiosk with id ${kioskId} does not exist`, 422) //update status code later
-    );
-  }
-  instruments.forEach((element) => {
-    kiosk.instruments.push(element);
-  });
 
-  kiosk.updated = Date.now();
+    if (!kiosk) {
+      throw createError.NotFound(`A kiosk with id ${kioskId} does not exist`);
+    }
+    instruments.forEach((element) => {
+      kiosk.instruments.push(element);
+    });
 
-  try {
+    kiosk.updated = Date.now();
+
     await kiosk.save();
-  } catch (err) {
-    return next(new HttpError("Something went wrong!", 500));
-  }
 
-  res.json({ message: "Kiosk updated successfully!", kiosk });
+    res.json({ message: "Kiosk updated successfully!", kiosk });
+  } catch (err) {
+    console.log(err.message);
+    next(err);
+  }
 };
 
 exports.deleteKiosk = async (req, res, next) => {
   const kioskId = req.params.kid;
 
   try {
-    const kiosk = await Kiosk.deleteOne({ kioskId });
+    await Kiosk.deleteOne({ kioskId });
+    res.json({ message: "Deleted successfully" });
   } catch (err) {
-    return next(new HttpError("Deleting kiosk failed!", 500));
+    console.log(err.message);
+    next(err);
   }
-
-  res.json({ message: "Deleted successfully" });
 };

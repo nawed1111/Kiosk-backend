@@ -39,7 +39,7 @@ router.use(CheckAuth);
  * @swagger
  *
  * /api/test/run-test:
- *   put:
+ *   post:
  *     description: Use for putting samples in a intrument
  *     produces:
  *       - application/json
@@ -75,7 +75,7 @@ router.use(CheckAuth);
  *       401:
  *         description: Unsuccessful authentication
  */
-router.put("/run-test", getLIMSToken, testController.runSampleTest);
+router.post("/run-test", getLIMSToken, testController.runSampleTest);
 
 /**
  * @swagger
